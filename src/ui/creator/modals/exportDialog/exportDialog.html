@@ -1,0 +1,22 @@
+<template id="export-card">
+  <div class="info-card">
+    <h2 class="info-title" id="export-title">Export project</h2>
+    <div class="info-body" data-slot="body">
+      <p class="ex-intro">Pick how you want to save it.</p>
+    </div>
+    <div class="info-actions">
+      <button
+        type="button"
+        class="app-btn info-btn-secondary"
+        data-action="export-cancel"
+      >Cancel</button>
+    </div>
+  </div>
+</template>
+
+<template id="export-option">
+  <button type="button" class="ex-option">
+    <strong class="ex-option-label" data-slot="label"></strong>
+    <span class="ex-option-desc" data-slot="desc"></span>
+  </button>
+</template>

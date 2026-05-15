@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vite/
+*.log
+.DS_Store
+# Playwright outputs
+test-results/
+playwright-report/
+.playwright/
+# Lighthouse CI outputs
+.lighthouseci/

@@ -1,0 +1,93 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Phase 0 — editor scene structural snapshot > Foot B fixture 1`] = `
+{
+  "elementsByClass": {
+    "ed-grid": 1,
+    "ed-hoop": 1,
+    "ed-point": 4,
+    "ed-segment": 3,
+    "ed-start-body": 1,
+    "ed-start-marker": 1,
+    "ed-start-slot": 1,
+    "end": 1,
+    "grid-axis-x": 1,
+    "grid-axis-y": 1,
+    "grid-major-x": 52,
+    "grid-major-y": 44,
+    "grid-minor-x": 52,
+    "grid-minor-y": 44,
+    "kind-straight": 3,
+    "last": 1,
+    "point-disc": 3,
+    "point-dot": 3,
+    "start": 1,
+    "start-disc": 1,
+    "start-halo": 1,
+  },
+  "elementsByTag": {
+    "circle": 8,
+    "g": 6,
+    "line": 197,
+    "rect": 3,
+    "title": 2,
+  },
+  "pointIds": [
+    "p0",
+    "p1",
+    "p2",
+    "p3",
+  ],
+  "segmentIds": [
+    "s1",
+    "s2",
+    "s3",
+  ],
+}
+`;
+
+exports[`Phase 0 — editor scene structural snapshot > Foot S fixture 1`] = `
+{
+  "elementsByClass": {
+    "ed-grid": 1,
+    "ed-hoop": 1,
+    "ed-point": 4,
+    "ed-segment": 3,
+    "ed-start-body": 1,
+    "ed-start-marker": 1,
+    "ed-start-slot": 1,
+    "end": 1,
+    "grid-axis-x": 1,
+    "grid-axis-y": 1,
+    "grid-major-x": 52,
+    "grid-major-y": 44,
+    "grid-minor-x": 52,
+    "grid-minor-y": 44,
+    "kind-straight": 3,
+    "last": 1,
+    "point-disc": 3,
+    "point-dot": 3,
+    "start": 1,
+    "start-disc": 1,
+    "start-halo": 1,
+  },
+  "elementsByTag": {
+    "circle": 8,
+    "g": 6,
+    "line": 197,
+    "rect": 3,
+    "title": 2,
+  },
+  "pointIds": [
+    "p0",
+    "p1",
+    "p2",
+    "p3",
+  ],
+  "segmentIds": [
+    "s1",
+    "s2",
+    "s3",
+  ],
+}
+`;

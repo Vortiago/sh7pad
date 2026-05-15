@@ -1,0 +1,50 @@
+/* Layout overrides for the export dialog. Reuses the .info-backdrop /
+ * .info-card chrome from disclaimerModal.css (and .info-btn-secondary
+ * from newProjectDialog.css); only the option-button visuals are local.
+ */
+
+.info-card[aria-labelledby="export-title"] .info-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.ex-intro {
+  margin: 0;
+  color: var(--textDim);
+  font-size: var(--font-md);
+}
+
+.ex-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--panelAlt, var(--panel));
+    border-color: var(--accent);
+    outline: none;
+  }
+}
+
+.ex-option-label {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.ex-option-desc {
+  color: var(--textDim);
+  font-size: 12px;
+  line-height: 1.4;
+}

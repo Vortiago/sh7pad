@@ -1,0 +1,47 @@
+<template id="bg-add">
+  <div class="sb-bg-add">
+    <button
+      type="button"
+      class="app-btn sb-btn-ghost"
+      data-action="bg-add"
+    >+ Add image</button>
+    <input
+      type="file"
+      accept="image/*"
+      aria-label="Choose background image"
+      style="display: none"
+      data-slot="file-input"
+    />
+    <div class="sb-bg-hint">Drop a sketch as a tracing guide.</div>
+  </div>
+</template>
+
+<template id="bg-controls">
+  <div class="sb-bg-controls">
+    <div data-slot="sliders"></div>
+    <div class="sb-bg-pos" data-slot="xy"></div>
+    <label class="sb-bg-lock">
+      <input type="checkbox" data-bg-control="locked" data-slot="lock-input" />
+      <span class="sb-bg-lock-lbl">Lock background (no drag)</span>
+    </label>
+    <button
+      type="button"
+      class="app-btn sb-btn-ghost"
+      data-action="bg-remove"
+    >Remove image</button>
+  </div>
+</template>
+
+<template id="bg-slider-row">
+  <div class="sb-bg-row">
+    <label class="sb-bg-lbl" data-slot="label"></label>
+    <input type="range" data-slot="input" />
+  </div>
+</template>
+
+<template id="bg-num-input">
+  <label class="sb-bg-num">
+    <span class="sb-bg-num-lbl" data-slot="label"></span>
+    <input type="number" data-slot="input" />
+  </label>
+</template>

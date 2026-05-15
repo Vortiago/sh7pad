@@ -1,0 +1,50 @@
+/* Glossary modal: grouped sections under the standard .info-card. */
+
+.glossary-card {
+  max-width: 560px;
+  max-height: min(80vh, 720px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.glossary-body {
+  overflow-y: auto;
+  padding-right: var(--space-3);
+}
+
+.glossary-section {
+  margin: 0 0 var(--space-6) 0;
+
+  &:last-of-type { margin-bottom: 0; }
+}
+
+.glossary-section-title {
+  margin: 0 0 var(--space-4) 0;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--textDim);
+}
+
+.glossary-entry {
+  margin: 0 0 var(--space-5) 0;
+
+  &:last-child { margin-bottom: 0; }
+}
+
+.glossary-entry-term {
+  display: block;
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.glossary-entry-body {
+  margin: 0;
+  font-size: var(--font-md);
+  line-height: 1.55;
+  color: var(--textDim);
+}

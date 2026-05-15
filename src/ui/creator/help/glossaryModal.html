@@ -1,0 +1,26 @@
+<template id="glossary-card">
+  <div class="info-card glossary-card">
+    <h2 class="info-title" id="glossary-title">Glossary</h2>
+    <div class="info-body glossary-body" data-slot="body"></div>
+    <div class="info-actions">
+      <button
+        type="button"
+        class="app-btn info-btn-primary"
+        data-action="glossary-close"
+      >Close</button>
+    </div>
+  </div>
+</template>
+
+<template id="glossary-section">
+  <section class="glossary-section">
+    <h3 class="glossary-section-title" data-slot="heading"></h3>
+  </section>
+</template>
+
+<template id="glossary-entry">
+  <div class="glossary-entry">
+    <strong class="glossary-entry-term" data-slot="term"></strong>
+    <p class="glossary-entry-body" data-slot="body"></p>
+  </div>
+</template>

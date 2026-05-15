@@ -1,0 +1,124 @@
+/* Phone inspector peek. Position:fixed above the pill bar, slides up
+ * on selection. Three states: hidden / peek / overlay. */
+
+/* Hide the desktop inspector strip on phone — the phone adapter owns
+ * a separate render host inside .ip-body, so leaving #ed-inspector
+ * visible would render the same selection twice. (Both adapters
+ * coexist as DOM children but only one shows per layout.) */
+body[data-layout='phone'] #ed-inspector { display: none; }
+
+.ip-root {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Sit above the pill bar (which uses safe-area + ~56px). */
+  bottom: calc(var(--touch-target) + var(--space-7) + env(safe-area-inset-bottom, 0));
+  background: var(--panel);
+  border-top: 1px solid var(--borderStrong);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-inspector-peek);
+  transition: transform 200ms ease, height 200ms ease;
+  /* touch-action lives on .ip-handle only — putting it on the root
+   * blocks vertical scrolling inside .ip-body via the touch-action
+   * intersection rule. */
+
+  &[data-peek-state='hidden'] {
+    transform: translateY(120%);
+    height: 0;
+    /* Drop the border too — height:0 still renders the 1px top border,
+     * leaving a visual stripe across the screen with no selection. */
+    border-top-width: 0;
+    pointer-events: none;
+  }
+
+  &[data-peek-state='peek'] {
+    transform: translateY(0);
+    height: var(--peek-h);
+  }
+
+  &[data-peek-state='overlay'] {
+    transform: translateY(0);
+    height: 50vh;
+  }
+
+  @media (prefers-reduced-motion: reduce) { transition: none; }
+}
+
+.ip-handle {
+  appearance: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  flex: 0 0 auto;
+  /* The handle owns the pointer-drag gesture; block browser default
+   * scroll so the drag actually moves the peek. */
+  touch-action: none;
+}
+
+.ip-close {
+  appearance: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--textDim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover { color: var(--text); }
+}
+
+.ip-grabber {
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--borderStrong);
+}
+
+.ip-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  /* Opt back into vertical scroll inside the body — the root has no
+   * touch-action override so this is the active value. */
+  touch-action: pan-y;
+  padding: 0 var(--space-5) var(--space-5);
+
+  /* The desktop inspector lays out as a single non-wrapping row; that
+   * overflows a phone viewport. Inside the peek body, allow wrap and
+   * relax min-widths so children reflow onto multiple lines. */
+  & .ed-inspector {
+    flex-wrap: wrap;
+    gap: var(--space-3) var(--space-4);
+    padding: var(--space-3) 0 var(--space-4);
+    border-top: none;
+    background: transparent;
+    align-items: flex-start;
+  }
+
+  & .ed-insp-meta,
+  & .ed-insp-row {
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  & .ed-insp-row select,
+  & .ed-insp-row input[type='range'] { max-width: 100%; }
+}

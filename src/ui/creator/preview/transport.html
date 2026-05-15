@@ -1,0 +1,40 @@
+<template id="pv-tx-row1">
+  <div class="pv-tx-row">
+    <button type="button" class="app-btn pv-tx-btn" data-action="reset">&#9198;</button>
+    <button type="button" class="app-btn pv-tx-btn" data-action="step-back">&#9664;</button>
+    <button type="button" class="app-btn pv-tx-btn pv-tx-play" data-slot="play"></button>
+    <button type="button" class="app-btn pv-tx-btn" data-slot="opposite" hidden></button>
+    <button type="button" class="app-btn pv-tx-btn" data-action="step-forward">&#9654;</button>
+    <button type="button" class="app-btn pv-tx-btn" data-action="end">&#9197;</button>
+    <input
+      type="range"
+      aria-label="Scrub through stitch steps"
+      data-action="scrub"
+      min="0"
+      data-slot="scrub"
+    />
+    <span class="pv-tx-pct" data-slot="pct"></span>
+  </div>
+</template>
+
+<template id="pv-tx-row2">
+  <div class="pv-tx-row pv-tx-meta">
+    <span class="pv-meta-lbl">SPEED</span>
+    <input
+      type="range"
+      aria-label="Playback speed"
+      data-action="speed"
+      min="1"
+      max="40"
+      data-slot="speed"
+    />
+    <span class="pv-tx-speed-val" data-slot="speed-val"></span>
+    <span class="pv-meta-lbl">X/Y</span>
+    <span class="pv-tx-xy" data-slot="xy"></span>
+    <span class="pv-meta-lbl">ZOOM</span>
+  </div>
+</template>
+
+<template id="pv-tx-zoom-btn">
+  <button type="button" class="app-btn pv-tx-btn pv-tx-zoom"></button>
+</template>

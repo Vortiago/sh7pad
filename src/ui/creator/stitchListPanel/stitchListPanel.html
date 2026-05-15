@@ -1,0 +1,32 @@
+<template id="sl-chrome-title">
+  <span class="sl-header-title">Stitches</span>
+</template>
+
+<template id="sl-chrome-collapse">
+  <button
+    type="button"
+    class="sl-collapse-btn"
+    data-action="toggle-right-collapse"
+    aria-label="Collapse stitch list"
+  >&rsaquo;</button>
+</template>
+
+<template id="sl-empty">
+  <li class="sl-empty"></li>
+</template>
+
+<template id="sl-start">
+  <li class="kind-start" data-row="start">START</li>
+</template>
+
+<template id="sl-row">
+  <li>
+    <span class="sl-row-label" data-slot="label"></span>
+    <button
+      type="button"
+      class="sl-row-delete"
+      data-action="delete"
+      data-slot="delete"
+    >&times;</button>
+  </li>
+</template>

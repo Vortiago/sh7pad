@@ -1,0 +1,101 @@
+/* Responsive breakpoints — Tailwind-aligned (Q2):
+ *   phone   ≤ 639px
+ *   tablet  640–1023px
+ *   desktop ≥ 1024px
+ *
+ * Plus a short-viewport override (max-height: 480px) for landscape
+ * phones where the canvas height is the constraint, not the width.
+ *
+ * Desktop layout is byte-identical to the pre-redesign grid; tablet
+ * narrows the sidebars and auto-collapses the right panel; phone
+ * stacks single-column and the runtime responsive/ controller mounts
+ * a pill bar + bottom sheets. CSS only fires the pillBar/sheet hosts
+ * when the controller has mounted them — no spec'd DOM here.
+ */
+
+/* ---- Tablet (640–1023): narrow sidebars, force right collapsed ---- */
+@media (min-width: 640px) and (max-width: 1023px) {
+  body { --left-w: 200px; }
+  /* The right sidebar's rail-collapse state on tablet matches the
+   * existing "collapsed" data-attr; the responsive controller (or the
+   * initial mountCreator pass) is responsible for setting it. */
+}
+
+/* ---- Phone (≤639px): stack and let JS hide chrome ---- */
+@media (max-width: 639px) {
+  /* Body becomes a vertical flex container so the chrome the
+   * responsive controller injects (appBar at the top, pillBar +
+   * sheets at the bottom) stacks naturally with .app-root taking
+   * the remaining height. Avoids hand-calculating viewport offsets
+   * for every chrome layer. */
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* The 3-col grid collapses to single column. The sidebars are
+   * hosted by bottom sheets via the responsive controller, so we
+   * remove their flex/grid presence here. */
+  .app-root {
+    display: block !important;
+    grid-template-columns: none !important;
+    flex: 1 1 auto;
+    min-height: 0;
+    height: auto !important;
+
+    /* Hide the OLD-style sidebar/stitch-list-panel ASIDE chrome at the
+     * top level — the responsive controller re-parents them into sheets
+     * which set their own positioning. The empty wrapper IDs remain in
+     * place when no controller is mounted (e.g. SSR), in which case
+     * they're just hidden. */
+    & > :is(#sidebar, #stitch-list-panel):not([data-in-sheet='true']) {
+      display: none;
+    }
+
+    /* Q15: rulers hidden on phone by default — the canvas needs the
+     * pixels and pinch-zoom replaces fine-precision use cases. The
+     * appBar's "Show rulers" overflow toggle adds .ed-rulers-shown to
+     * <html> to opt back in (mirroring the .ed-rulers-hidden class
+     * used at desktop width). The .app-root prefix bumps specificity
+     * above rulers.css's single-class selectors at equal cascade order. */
+    & :is(.ed-ruler-top, .ed-ruler-left, .ed-ruler-corner) {
+      display: none;
+    }
+  }
+
+  html.ed-rulers-shown .app-root :is(.ed-ruler-top, .ed-ruler-left, .ed-ruler-corner) {
+    display: block;
+  }
+
+  /* The center main pane fills the remaining height inside .app-root.
+   * The desktop ms-bar (Edit | Preview toggle) is hidden here because
+   * the appBar's segmented control is the phone-mode replacement. */
+  .main {
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0;
+  }
+  .ms-bar { display: none !important; }
+
+  /* The bottom-sheet hosts (.bs-root) are position:fixed and the
+   * pillBar (.pb-root) has its own border-top, so they don't need
+   * special handling here — flex flow ignores fixed-position sheets. */
+}
+
+/* ---- Short viewport (landscape phones, split screens) ---- */
+@media (max-height: 480px) {
+  /* Trim ruler chrome — the canvas needs every vertical pixel. */
+  :is(.ed-ruler-top, .ed-ruler-left, .ed-ruler-corner) {
+    display: none;
+  }
+  .ed-canvas-wrap { padding: 0 !important; }
+}
+
+/* Sheets host the existing #sidebar / #stitch-list-panel elements, but
+ * those panels include a desktop "collapse-to-rail" chevron in their
+ * header. The chevron makes no sense inside a bottom sheet (you swipe
+ * the handle down to close, not toggle a 36px rail). Hide it whenever
+ * the panel is a descendant of a sheet body. */
+.bs-body :is(.sb-collapse-btn, .sl-collapse-btn) {
+  display: none;
+}

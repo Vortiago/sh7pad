@@ -1,0 +1,21 @@
+/* Tap-to-add ripple — brief ring expanding from the tap point, then
+ * fades out. prefers-reduced-motion in shared/a11y.css cuts the
+ * animation duration to ~0 so the element appears + removes instantly.
+ */
+.ed-tap-ripple {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.9;
+  animation: ed-tap-ripple 350ms ease-out forwards;
+  z-index: var(--z-overlay);
+}
+
+@keyframes ed-tap-ripple {
+  from { transform: scale(0.5); opacity: 0.9; }
+  to   { transform: scale(2.2); opacity: 0; }
+}

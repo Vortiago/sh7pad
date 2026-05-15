@@ -1,0 +1,58 @@
+/* Touch-target sizing.
+ *
+ * Applied only on coarse-pointer devices (phones, tablets) so desktop
+ * dimensions stay unchanged. WCAG 2.5.5 (AAA) recommends 44×44 css px;
+ * we adopt that as the minimum so finger taps are reliable.
+ *
+ * Cross-cutting overrides live in one file (matches the
+ * prefers-reduced-motion pattern in a11y.css). Component-local
+ * exceptions get :where() exclusions here, not duplicated overrides.
+ */
+
+@media (pointer: coarse) {
+  /* Generic interactive elements get a 44px minimum. The .app-root
+   * scope keeps specificity above bare-element selectors in component
+   * CSS without having to enumerate every class. */
+  .app-root {
+    & :is(button, input, select, textarea, [role='button']) {
+      min-height: var(--touch-target);
+    }
+
+    /* Range slider thumb. Webkit + Firefox need separate selectors. */
+    & input[type='range'] {
+      min-height: var(--touch-target);
+
+      &::-webkit-slider-thumb { width: 24px; height: 24px; }
+      &::-moz-range-thumb { width: 24px; height: 24px; }
+    }
+
+    /* Color picker swatch — native control sized small by default. */
+    & input[type='color'] { min-width: var(--touch-target); }
+  }
+
+  /* Stitch-list per-row delete: hidden via opacity:0 until :hover on
+   * desktop (WCAG 1.4.13 — see stitchListPanel.css). Force visible at
+   * coarse pointer so finger users can reach it without the hover
+   * trick that touch can't trigger. Class name is .sl-row-delete in
+   * stitchListPanel/panel.ts; .sb-item-del is the sidebar's project
+   * delete glyph. */
+  .sl-row-delete,
+  .sb-item-del {
+    display: inline-flex !important;
+    opacity: 1 !important;
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Toolbar zoom buttons (28×20 by default) and other small icon
+   * buttons benefit from a larger hit area without changing visuals;
+   * pad rather than enlarge to keep the visual rhythm. */
+  .ed-tool-btn,
+  .ed-zoom-btn,
+  .ed-stitch-btn {
+    min-width: var(--touch-target);
+    min-height: var(--touch-target);
+  }
+}

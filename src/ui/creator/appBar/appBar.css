@@ -1,0 +1,66 @@
+/* Phone-only top app bar. Sticky to the top with safe-area-inset
+ * padding for iOS notch/dynamic island. Mode segmented control in the
+ * center, overflow ⋮ on the right.
+ */
+
+.ab-root {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  padding-top: calc(var(--space-3) + env(safe-area-inset-top, 0));
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-app-bar);
+}
+
+.ab-mode {
+  display: inline-flex;
+  border: 1px solid var(--borderStrong);
+  border-radius: var(--radius-pill);
+  background: var(--panelAlt);
+  padding: 2px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.ab-mode-btn {
+  appearance: none;
+  background: transparent;
+  border: none;
+  font: 600 13px/1 inherit;
+  color: var(--text);
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-pill);
+  min-height: var(--touch-target);
+  min-width: 88px;
+  cursor: pointer;
+
+  &[data-active='true'] {
+    background: var(--accent);
+    color: var(--accentInk);
+  }
+}
+
+.ab-overflow {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: 18px;
+  line-height: 1;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* Rulers-hidden state set via the overflow toggle. Targets the editor
+ * canvas wrapper rulers regardless of breakpoint. */
+.ed-rulers-hidden {
+  & .ed-ruler-top,
+  & .ed-ruler-left,
+  & .ed-ruler-corner { display: none; }
+}

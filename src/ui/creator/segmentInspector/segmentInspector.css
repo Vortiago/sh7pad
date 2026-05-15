@@ -1,0 +1,55 @@
+.ed-inspector {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-6);
+  flex: 0 0 auto;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  font-size: var(--font-sm);
+  min-height: 40px;
+}
+
+.ed-insp-meta,
+.ed-insp-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.ed-insp-id {
+  font-weight: 500;
+  font-family: ui-monospace, monospace;
+}
+
+.ed-insp-len,
+.ed-insp-imported { color: var(--textFaint); }
+
+.ed-insp-imported { font-style: italic; }
+
+.ed-insp-row select,
+.ed-insp-row input[type="range"] { font-family: inherit; }
+
+.ed-insp-val {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  min-width: 46px;
+  text-align: right;
+}
+
+/* Override the .app-btn base for the bottom-strip context: tighter padding,
+   smaller radius, panel background to read as inset rather than raised. */
+.ed-insp-btn {
+  padding: var(--space-2) var(--space-5);
+  background: var(--panel);
+  border-radius: var(--radius-sm);
+
+  &:hover { background: var(--overlay); }
+}
+
+.ed-insp-btn-danger {
+  color: var(--danger);
+  border-color: var(--dangerBorder);
+
+  &:hover { background: var(--dangerSoft); }
+}

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="sh7pad — design and visualize .sh7 embroidery stitch patterns in your browser." />
+    <title>sh7pad</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body data-mode="edit">
+    <a href="#pane-edit" class="sr-only-focusable">Skip to editor</a>
+    <div id="app" class="app-root">
+      <aside id="sidebar" class="sb-root" aria-label="Project sidebar"></aside>
+
+      <main class="main main-single" aria-label="Stitch editor">
+        <div class="ms-bar">
+          <div id="mode-switch" class="ms-wrap"></div>
+        </div>
+
+        <div id="pane-edit" class="pane pane-full" tabindex="-1">
+          <div id="ed-toolbar" class="ed-toolbar"></div>
+          <div id="ed-canvas-wrap" class="ed-canvas-wrap">
+            <svg
+              id="ed-canvas"
+              class="ed-canvas"
+              xmlns="http://www.w3.org/2000/svg"
+            ></svg>
+            <div id="ruler-top" class="ed-ruler ed-ruler-top"></div>
+            <div id="ruler-left" class="ed-ruler ed-ruler-left"></div>
+            <div class="ed-ruler-corner">mm</div>
+            <div id="canvas-announce" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+          </div>
+          <div id="ed-inspector" class="ed-inspector"></div>
+        </div>
+
+        <div id="pane-preview" class="pane pane-full" hidden>
+          <div id="pv-header" class="pv-header"></div>
+          <div id="pv-canvas-wrap" class="pv-canvas-wrap">
+            <svg
+              id="pv-canvas"
+              class="pv-canvas"
+              xmlns="http://www.w3.org/2000/svg"
+            ></svg>
+          </div>
+          <div id="pv-transport" class="pv-transport"></div>
+        </div>
+      </main>
+
+      <aside id="stitch-list-panel" class="sl-root">
+        <div id="stitch-list-header" class="sl-header"></div>
+        <ol id="stitch-list" class="sl-list" aria-label="Drop list"></ol>
+      </aside>
+    </div>
+
+    <script type="module" src="/src/ui/creator/main.ts"></script>
+  </body>
+</html>

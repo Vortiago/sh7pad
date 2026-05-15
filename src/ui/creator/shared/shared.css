@@ -1,0 +1,158 @@
+/* Resets, base layout scaffold, and global element styles. Tokens live
+ * in shared/tokens.css; a11y utilities in shared/a11y.css; touch
+ * overrides in shared/touch.css; breakpoint reflow in
+ * shared/breakpoints.css. mountCreator imports them in order:
+ *   tokens → shared (this file) → a11y → touch → breakpoints
+ */
+
+/* Resets ------------------------------------------------------------- */
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+[hidden] { display: none !important; }
+
+/* Layout scaffold (used by index.html) ------------------------------- */
+
+.app-root {
+  display: grid;
+  grid-template-columns: var(--left-w, 240px) 1fr var(--right-w, 240px);
+  height: 100%;
+  width: 100%;
+}
+
+/* Collapsed sidebars shrink to a thin rail showing only the expand
+   chevron. Toggle is wired in mountCreator; the body data attribute
+   drives layout here so there's no JS-level layout math. */
+body[data-left-collapsed="true"]  .app-root { --left-w:  36px; }
+body[data-right-collapsed="true"] .app-root { --right-w: 36px; }
+
+/* Set by the responsive controller's tablet mount: the right
+ * stitch-list panel becomes a bottom sheet, so the desktop grid's
+ * right column should disappear entirely (not just collapse to a
+ * 36px rail — the panel is GONE from the grid). Distinct from
+ * data-right-collapsed so the desktop rail-collapsed CSS rules
+ * (which hide #stitch-list and reflow the header) don't fire. */
+body[data-right-as-sheet="true"] {
+  & .app-root { --right-w: 0; }
+
+  /* On tablet the pill bar is fixed to the viewport bottom (see
+   * pillBar.css `.pb-root[data-variant='tablet']`). Reserve room under the editor pane so
+   * the inspector strip — which sits at the bottom of `.pane` — clears
+   * the pill bar instead of hiding behind it. */
+  & .pane { padding-bottom: var(--pill-bar-h); }
+}
+
+.main {
+  display: flex;
+  min-width: 0;
+  height: 100%;
+}
+
+.main-single {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+
+.pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pane-full {
+  flex: 1;
+  min-height: 0;
+}
+
+/* "Eyebrow" — small uppercase section labels used in the sidebar headers,
+   stitch-list header, toolbar group labels, transport-row metadata, and
+   inspector field labels. Shared here so every label tracks one typographic
+   recipe. */
+:is(.sb-section-h, .sl-header, .ed-tlbl, .pv-meta-lbl, .ed-insp-lbl) {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--textDim);
+}
+
+/* Button base shared across sidebar, toolbar, preview transport. Each
+   module's CSS adds modifiers (e.g. .sb-btn-primary, .ed-tool-btn) on top. */
+.app-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: var(--space-3) var(--space-5);
+  cursor: pointer;
+}
+
+/* Range inputs — used by sidebar (bg position, tension), inspector
+   (segment width), preview transport (scrubber). Stays global. */
+
+input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 3px;
+  background: rgba(125, 125, 125, 0.25);
+  border-radius: var(--radius-pill);
+  outline: none;
+
+  &::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    box-shadow: var(--shadow-sm);
+    cursor: pointer;
+  }
+
+  &::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--panel);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+  }
+}
+
+/* Scrollbar — global. Replaces unmotivated greys with border tokens. */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--radius-sm);
+
+  &:hover { background: var(--borderStrong); }
+}

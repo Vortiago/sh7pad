@@ -1,0 +1,144 @@
+.sl-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.sl-header {
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sl-header-title {
+  font-size: var(--font-xs);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--textDim);
+}
+
+.sl-collapse-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--textDim);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-lg);
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: var(--text);
+    background: var(--overlay);
+  }
+}
+
+/* Collapsed: hide the title and the list. Re-orient the header so the
+   only visible chrome is the expand chevron centered on the rail. */
+body[data-right-collapsed="true"] #stitch-list-panel {
+  & #stitch-list { display: none; }
+
+  & .sl-header {
+    padding: var(--space-3) 0 0;
+    border-bottom: none;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  & .sl-header-title { display: none; }
+
+  & .sl-collapse-btn {
+    font-size: 0;
+
+    &::after {
+      content: "‹";
+      font-size: var(--font-lg);
+      line-height: 1;
+    }
+  }
+}
+
+.sl-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+
+  & li {
+    padding: var(--space-2) var(--space-5);
+    border-bottom: 1px solid var(--overlay);
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--textDim);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+
+    &:hover { background: var(--overlay-soft); }
+    &.done { color: var(--accent); }
+    &.current {
+      background: var(--accentSoft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    &.future { color: var(--textFaint); }
+
+    /* Tail row — where the next added stitch will originate. Subtle left-border
+      accent so it doesn't compete with .current/selection coloring. */
+    &.kind-last:not(.current) {
+      border-left: 3px solid var(--accent);
+      padding-left: 9px;
+    }
+  }
+
+  & .sl-row-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  & .sl-row-delete {
+    font: inherit;
+    font-size: var(--font-lg);
+    line-height: 1;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--textFaint);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    opacity: 0;
+
+    &:hover {
+      background: var(--dangerHover);
+      color: var(--danger);
+    }
+  }
+
+  & li:hover .sl-row-delete,
+  & .sl-row-delete:focus-visible { opacity: 1; }
+}
+
+.sl-empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--textFaint);
+  font-style: italic;
+}

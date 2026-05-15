@@ -1,0 +1,74 @@
+.info-backdrop {
+  /* Override native <dialog> UA defaults (width: fit-content; margin: auto)
+   * so the dialog truly fills the viewport — without this the dialog
+   * sizes around its content card and the dim backdrop only paints
+   * behind the card. */
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  margin: 0;
+  border: 0;
+  background: color-mix(in srgb, var(--text) 45%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  animation: infoIn 0.2s ease;
+  padding: var(--space-7);
+  box-sizing: border-box;
+
+  &::backdrop {
+    background: color-mix(in srgb, var(--text) 45%, transparent);
+  }
+}
+
+.info-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-7);
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow-lg);
+}
+
+.info-title {
+  margin: 0 0 var(--space-5) 0;
+  font-size: var(--font-xl);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.info-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--textDim);
+
+  & p { margin: 0 0 var(--space-5) 0; }
+  & p:last-child { margin-bottom: 0; }
+}
+
+.info-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.info-btn-primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accentInk);
+  font-size: var(--font-md);
+  font-weight: 600;
+  padding: var(--space-4) var(--space-6);
+
+  &:hover { filter: brightness(1.05); }
+}
+
+@keyframes infoIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

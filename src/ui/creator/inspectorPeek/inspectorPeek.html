@@ -1,0 +1,26 @@
+<template id="ip-root">
+  <section
+    class="ip-root"
+    role="region"
+    aria-label="Selection inspector"
+    data-peek-state="hidden"
+  >
+    <button
+      type="button"
+      class="ip-handle"
+      aria-label="Expand inspector"
+      data-slot="handle"
+    >
+      <span class="ip-grabber"></span>
+    </button>
+    <button
+      type="button"
+      class="ip-close"
+      aria-label="Close inspector"
+      data-action="close-peek"
+    >&times;</button>
+    <div class="ip-body">
+      <div data-slot="render-host"></div>
+    </div>
+  </section>
+</template>

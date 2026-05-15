@@ -1,0 +1,353 @@
+.sb-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+}
+
+.sb-brand {
+  padding: var(--space-6);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+/* Collapse / expand toggle. Pinned top-right of the brand header when
+   expanded; centered on the rail when collapsed. CSS swaps the chevron
+   character without re-rendering the button. */
+.sb-collapse-btn {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--textDim);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-lg);
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    color: var(--text);
+    background: var(--overlay);
+  }
+}
+
+/* Collapsed: hide everything in the sidebar except the toggle button.
+   The sidebar root keeps a minimal padding so the rail looks intentional
+   and the button sits centered. CSS swaps the chevron via a pseudo-
+   element so the JS doesn't need to know about visual state. */
+body[data-left-collapsed="true"] #sidebar {
+  & > *:not(.sb-brand) { display: none; }
+
+  & .sb-brand {
+    padding: 0;
+    border-bottom: none;
+    height: 100%;
+
+    & > *:not(.sb-collapse-btn) { display: none; }
+  }
+
+  & .sb-collapse-btn {
+    position: static;
+    margin: var(--space-3) auto 0;
+    font-size: 0;
+
+    &::after {
+      content: "›";
+      font-size: var(--font-lg);
+      line-height: 1;
+    }
+  }
+}
+
+.sb-brand-title {
+  font-size: var(--font-md);
+  font-weight: 600;
+}
+
+.sb-brand-sub {
+  font-size: var(--font-xs);
+  color: var(--textFaint);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: var(--space-1);
+}
+
+.sb-info-link {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  margin-top: var(--space-1);
+  padding: var(--space-2) 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  color: var(--textDim);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { color: var(--accent); }
+}
+
+.sb-actions {
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sb-act-row {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.sb-btn-primary {
+  background: var(--accent);
+  color: var(--accentInk);
+  border-color: var(--accent);
+  font-weight: 600;
+  width: 100%;
+  padding: var(--space-4) var(--space-5);
+}
+
+.sb-btn-ghost {
+  flex: 1;
+  font-size: var(--font-sm);
+}
+
+.sb-section {
+  padding: var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+/* Typography in shared/shared.css (.eyebrow group); only layout here. */
+.sb-section-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+
+.sb-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.sb-empty {
+  font-size: var(--font-sm);
+  color: var(--textFaint);
+}
+
+.sb-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  color: var(--textDim);
+
+  &:hover { background: var(--overlay); }
+
+  &.active {
+    background: var(--panelAlt);
+    border-left-color: var(--accent);
+    color: var(--text);
+  }
+}
+
+.sb-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.sb-item-name {
+  font-size: var(--font-md);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sb-item-name-input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--font-md);
+  font-weight: 500;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-2);
+  margin: calc(-1 * var(--space-1)) calc(-1 * var(--space-2));
+  color: inherit;
+
+  &:hover { border-color: var(--border); }
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: var(--panelAlt);
+  }
+}
+
+.sb-item-meta {
+  font-size: 10.5px;
+  color: var(--textFaint);
+  margin-top: var(--space-1);
+}
+
+.sb-item-del {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  font-size: 11px;
+  cursor: pointer;
+  padding: var(--space-2);
+  color: var(--textFaint);
+
+  &:hover { color: var(--danger); }
+}
+
+.sb-stitch-controls,
+.sb-bg-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sb-bg-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+
+  & input[type="range"] {
+    width: 100%;
+    min-height: 24px;
+  }
+
+  & > input[type="number"] {
+    width: 100%;
+    min-height: 24px;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--panelAlt);
+    font: inherit;
+    font-size: 11px;
+    color: var(--text);
+    box-sizing: border-box;
+  }
+}
+
+.sb-bg-lbl {
+  font-size: 10.5px;
+  color: var(--textDim);
+}
+
+.sb-static-row .sb-static-val {
+  font-size: 12px;
+  color: var(--text);
+  padding: var(--space-2) 0;
+  font-weight: 500;
+}
+
+.sb-locked-note {
+  font-size: 10.5px;
+  color: var(--textDim);
+  font-style: italic;
+  margin-top: calc(var(--space-2) * -1);
+}
+
+.sb-bg-pos {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.sb-bg-num {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--panelAlt);
+  font-size: 11px;
+
+  & input {
+    flex: 1;
+    border: 0;
+    background: transparent;
+    font-family: inherit;
+    text-align: right;
+    outline: none;
+    width: 100%;
+    color: var(--text);
+  }
+}
+
+.sb-bg-hint {
+  font-size: 10.5px;
+  color: var(--textFaint);
+  margin-top: var(--space-3);
+  line-height: 1.4;
+}
+
+.sb-bg-lock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+  font-size: 11px;
+  color: var(--textDim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sb-preview-controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+}
+
+.sb-color {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 32px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+
+  &::-webkit-color-swatch-wrapper { padding: 0; }
+  &::-webkit-color-swatch { border: none; border-radius: calc(var(--radius-sm) - 1px); }
+  &::-moz-color-swatch { border: none; border-radius: calc(var(--radius-sm) - 1px); }
+}
+
+.sb-btn-toggle {
+  padding: 2px 10px;
+  font-size: 11px;
+  background: var(--panelAlt);
+
+  &[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--accentInk);
+    border-color: var(--accent);
+  }
+}

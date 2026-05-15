@@ -1,0 +1,109 @@
+/* Layout overrides for the new-project dialog. The dialog reuses the
+ * .info-backdrop / .info-card chrome from disclaimerModal.css; only
+ * the content-specific bits live here.
+ */
+
+.info-card[aria-labelledby="new-project-title"] .info-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.np-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.np-section-title {
+  margin: 0;
+  font-size: var(--font-md);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.np-name-input {
+  font: inherit;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: var(--text);
+  caret-color: var(--accent);
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+
+  &::placeholder {
+    color: var(--textDim);
+    opacity: 0.7;
+  }
+
+  &:hover { border-color: color-mix(in srgb, var(--text) 30%, var(--border)); }
+
+  &:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow:
+      inset 0 1px 2px rgba(0, 0, 0, 0.04),
+      0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+}
+
+.np-option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+
+  &:hover {
+    background: var(--panelAlt, var(--panel));
+    border-color: var(--accent);
+  }
+
+  & input[type="radio"] {
+    margin-top: 3px;
+    flex: 0 0 auto;
+  }
+}
+
+.np-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  & strong {
+    font-weight: 600;
+    color: var(--text);
+  }
+}
+
+.np-option-desc {
+  font-style: normal;
+  color: var(--textDim);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.np-note {
+  margin: 0;
+  font-size: 12px;
+  color: var(--textDim);
+  font-style: italic;
+}
+
+.info-btn-secondary {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--font-md);
+  padding: var(--space-4) var(--space-6);
+  margin-right: var(--space-3);
+
+  &:hover { background: var(--panelAlt, var(--panel)); }
+}

@@ -1,0 +1,81 @@
+.pv-transport {
+  padding: var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 0 0 auto;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+}
+
+.pv-tx-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+
+  & input[type="range"] {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  /* Phone: let the transport's two rows wrap to multiple lines so scrub
+   * and speed stay visible without horizontal overflow at 360-390px
+   * widths. */
+  @media (max-width: 639px) {
+    flex-wrap: wrap;
+    row-gap: var(--space-3);
+  }
+}
+
+.pv-tx-meta { font-size: 10.5px; }
+
+.pv-tx-btn {
+  width: 30px;
+  height: 30px;
+  background: var(--panelAlt);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pv-tx-play {
+  background: var(--accent);
+  color: var(--accentInk);
+  border-color: var(--accent);
+  width: 40px;
+}
+
+/* Zoom buttons hide entirely at phone width — pinch-to-zoom + the floating
+ * fit button on the canvas wrap own zoom on phone, so duplicating them in
+ * the transport just costs vertical space. */
+.pv-tx-zoom {
+  width: 30px;
+  margin-left: var(--space-1);
+
+  @media (max-width: 639px) { display: none; }
+}
+
+.pv-tx-color {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: pointer;
+
+  &::-webkit-color-swatch-wrapper { padding: 0; }
+  &::-webkit-color-swatch { border: none; border-radius: calc(var(--radius-sm) - 1px); }
+  &::-moz-color-swatch { border: none; border-radius: calc(var(--radius-sm) - 1px); }
+}
+
+.pv-tx-pct,
+.pv-tx-xy {
+  color: var(--textDim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: right;
+}

@@ -1,0 +1,91 @@
+/* Bottom sheet — phone/tablet-portrait surface that slides up from the
+ * bottom edge. data-sheet-state drives the transform; transition snaps
+ * to the next state on release.
+ */
+
+.bs-root {
+  position: fixed;
+  left: 0;
+  right: 0;
+  /* Sit above the pillBar so the pill stays visible while the sheet
+   * is open. pillBar height: var(--touch-target) + ~12px padding +
+   * safe-area-inset-bottom; sheet content scrolls inside .bs-body. */
+  bottom: calc(var(--touch-target) + var(--space-5) + env(safe-area-inset-bottom, 0));
+  background: var(--panel);
+  border-top: 1px solid var(--borderStrong);
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: var(--z-bottom-sheet);
+  /* Drag-out-of-the-way translation. data-sheet-state drives the height. */
+  transition: transform 200ms ease, height 200ms ease;
+  /* touch-action lives on .bs-handle only — putting it on the root
+   * blocks vertical scrolling inside .bs-body via the touch-action
+   * intersection rule. */
+
+  &[data-sheet-state='closed'] {
+    transform: translateY(100%);
+    height: 0;
+    pointer-events: none;
+  }
+
+  &[data-sheet-state='half'] {
+    transform: translateY(0);
+    height: 50vh;
+  }
+
+  &[data-sheet-state='full'] {
+    transform: translateY(0);
+    height: 90vh;
+  }
+
+  /* Phone: cap height so the 'full' state can't slide under the appBar.
+   * Bottom edge already clears the pillBar via the `bottom:` rule above. */
+  @media (max-width: 639px) {
+    max-height: calc(100vh
+      - var(--app-bar-h)
+      - var(--space-3)
+      - env(safe-area-inset-top, 0)
+      - var(--touch-target)
+      - var(--space-5)
+      - env(safe-area-inset-bottom, 0));
+  }
+
+  /* Reduced-motion: snap immediately, no slide. */
+  @media (prefers-reduced-motion: reduce) { transition: none; }
+}
+
+/* Drag handle. 44px hit area, with a centered visual grabber. */
+.bs-handle {
+  appearance: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  height: var(--touch-target);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  flex: 0 0 auto;
+  /* The handle owns the pointer-drag gesture. */
+  touch-action: none;
+}
+
+.bs-grabber {
+  display: block;
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--borderStrong);
+}
+
+.bs-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Opt back into vertical scroll inside the body — the root has no
+   * touch-action override so this is the active value. */
+  touch-action: pan-y;
+  padding: 0 var(--space-5) var(--space-5);
+}

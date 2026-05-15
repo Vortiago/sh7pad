@@ -1,0 +1,68 @@
+.ed-ruler-top {
+  position: absolute;
+  left: 34px;
+  right: 0;
+  top: 0;
+  height: 22px;
+  background: var(--rulerBg);
+  border-bottom: 1px solid var(--border);
+  pointer-events: none;
+  z-index: var(--z-sticky);
+  font-size: 9.5px;
+  color: var(--textFaint);
+}
+
+.ed-ruler-left {
+  position: absolute;
+  left: 0;
+  top: 22px;
+  bottom: 0;
+  width: 34px;
+  background: var(--rulerBg);
+  border-right: 1px solid var(--border);
+  pointer-events: none;
+  z-index: var(--z-sticky);
+  font-size: 9.5px;
+  color: var(--textFaint);
+}
+
+.ed-ruler-corner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 22px;
+  background: var(--rulerCornerBg);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-2xs);
+  font-weight: 600;
+  color: var(--textFaint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  z-index: var(--z-overlay);
+  pointer-events: none;
+}
+
+.ed-ruler {
+  & line.axis-tick,
+  & text.axis-tick {
+    stroke: var(--accent);
+    fill: var(--accent);
+    font-weight: 600;
+  }
+
+  & .hover-tick {
+    & line {
+      stroke: var(--accent);
+      stroke-width: 1.2;
+    }
+    & text {
+      fill: var(--accent);
+      font-weight: 600;
+    }
+  }
+}

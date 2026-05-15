@@ -1,0 +1,42 @@
+<template id="np-card">
+  <div class="info-card">
+    <h2 class="info-title" id="new-project-title">New project</h2>
+    <div class="info-body">
+      <section class="np-section">
+        <label class="np-section-title" for="np-name">Name</label>
+        <input
+          type="text"
+          id="np-name"
+          class="np-name-input"
+          autocomplete="off"
+          maxlength="60"
+          data-slot="name-input"
+        />
+      </section>
+      <div data-slot="mode-section"></div>
+      <div data-slot="foot-section"></div>
+      <p class="np-note">Mode and foot are locked once the project is created.</p>
+    </div>
+    <div class="info-actions">
+      <button type="button" class="app-btn info-btn-secondary" data-action="np-cancel">Cancel</button>
+      <button type="button" class="app-btn info-btn-primary" data-action="np-create">Create</button>
+    </div>
+  </div>
+</template>
+
+<template id="np-section">
+  <section class="np-section">
+    <h3 class="np-section-title" data-slot="heading"></h3>
+    <div data-slot="options"></div>
+  </section>
+</template>
+
+<template id="np-option">
+  <label class="np-option">
+    <input type="radio" data-slot="radio" />
+    <span class="np-option-text">
+      <strong data-slot="label"></strong>
+      <em class="np-option-desc" data-slot="desc"></em>
+    </span>
+  </label>
+</template>

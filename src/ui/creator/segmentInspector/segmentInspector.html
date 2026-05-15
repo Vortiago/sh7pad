@@ -1,0 +1,79 @@
+<template id="insp-segment-meta">
+  <div class="ed-insp-meta">
+    <span class="ed-insp-lbl">SEGMENT</span>
+    <span class="ed-insp-id" data-slot="id"></span>
+    <span class="ed-insp-len" data-value="len" data-slot="len"></span>
+    <span class="ed-insp-imported" data-slot="imported" hidden>&middot; imported (preview only &mdash; re-author for editable taper)</span>
+  </div>
+</template>
+
+<template id="insp-manual-meta">
+  <div class="ed-insp-meta">
+    <span class="ed-insp-lbl">SATIN</span>
+    <span class="ed-insp-id" data-slot="id"></span>
+    <span class="ed-insp-len" data-value="len" data-slot="len"></span>
+  </div>
+</template>
+
+<template id="insp-point-meta">
+  <div class="ed-insp-meta">
+    <span class="ed-insp-lbl">POINT</span>
+    <span class="ed-insp-id" data-slot="id"></span>
+    <span class="ed-insp-len" data-slot="coords"></span>
+    <span class="ed-insp-imported" data-slot="start-note" hidden>&middot; start anchor (locked at X=0)</span>
+  </div>
+</template>
+
+<template id="insp-type-row">
+  <div class="ed-insp-row">
+    <label class="ed-insp-lbl" for="ed-insp-type">TYPE</label>
+    <select id="ed-insp-type" aria-label="Segment type" data-control="type">
+      <option value="straight">straight</option>
+      <option value="satin">satin</option>
+    </select>
+  </div>
+</template>
+
+<template id="insp-endat-row">
+  <div class="ed-insp-row">
+    <label class="ed-insp-lbl" for="ed-insp-endAt">END AT</label>
+    <select id="ed-insp-endAt" aria-label="End at" data-control="endAt">
+      <option value="right">right</option>
+      <option value="center">center</option>
+      <option value="left">left</option>
+    </select>
+  </div>
+</template>
+
+<template id="insp-slider-row">
+  <div class="ed-insp-row">
+    <label class="ed-insp-lbl" data-slot="label"></label>
+    <input type="range" data-slot="input" />
+    <span class="ed-insp-val" data-slot="val"></span>
+  </div>
+</template>
+
+<template id="insp-subdivide-btn">
+  <button
+    type="button"
+    class="app-btn ed-insp-btn"
+    data-action="subdivide"
+    title="Insert a midpoint to split this segment in two"
+  >Subdivide</button>
+</template>
+
+<template id="insp-delete-btn">
+  <button
+    type="button"
+    class="app-btn ed-insp-btn ed-insp-btn-danger"
+    data-action="delete"
+  >Delete</button>
+</template>
+
+<template id="insp-delete-point-btn">
+  <button
+    type="button"
+    class="app-btn ed-insp-btn ed-insp-btn-danger"
+    data-action="delete-point"
+  >Delete point</button>
+</template>

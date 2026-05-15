@@ -1,0 +1,111 @@
+/* Design tokens. Anything other than CSS custom properties belongs in
+ * shared.css (resets + layout + base components). Splitting them out
+ * makes "what colors / spaces / fonts do we use" answerable in one
+ * file without scrolling past resets and shared component styles.
+ */
+
+:root {
+  /* Surfaces ----------------------------------------------------------- */
+  --bg: #ebe9e3;        /* warm putty backdrop */
+  --panel: #fcfbf8;     /* near-white panels */
+  --panelAlt: #f4f2ec;  /* subtle inset */
+
+  /* Borders ------------------------------------------------------------ */
+  --border: rgba(30, 26, 18, 0.10);
+  --borderStrong: rgba(30, 26, 18, 0.20);
+
+  /* Text --------------------------------------------------------------- */
+  --text: #1f1c16;
+  --textDim: #6b6760;
+  --textFaint: #6c6962;
+
+  /* Accent / semantic -------------------------------------------------- */
+  --accent: #3a5dbe;
+  --accentInk: #ffffff;
+  --accentSoft: rgba(58, 93, 190, 0.12);
+  --danger: #b3261e;
+  --dangerBorder: rgba(179, 38, 30, 0.35);
+  --dangerSoft: rgba(179, 38, 30, 0.08);
+  --dangerHover: rgba(179, 38, 30, 0.12);
+
+  /* Canvas content ----------------------------------------------------- */
+  --grid: rgba(30, 26, 18, 0.05);
+  --gridStrong: rgba(30, 26, 18, 0.13);
+  --fabric: #fdfcf8;
+  --thread: #3a5dbe;
+  --needle: #d97757;
+  --threadOutline: #11224a;
+  --footStroke: #5b554a;
+  --rulerBg: rgba(252, 251, 248, 0.85);
+  --rulerCornerBg: rgba(252, 251, 248, 0.95);
+
+  /* Overlays for hover / inset bg ------------------------------------- */
+  --overlay-soft: rgba(0, 0, 0, 0.03);
+  --overlay: rgba(0, 0, 0, 0.04);
+  --overlay-strong: rgba(0, 0, 0, 0.06);
+
+  /* Spacing scale ------------------------------------------------------ */
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 44px;
+
+  /* Touch target — WCAG 2.5.5 (AAA) baseline. Used by shared/touch.css
+   * to bump interactive elements at (pointer: coarse) without affecting
+   * desktop sizing. */
+  --touch-target: 44px;
+
+  /* Phone app bar full height (incl. padding + 1px border).
+   * Centralized so the bottom sheet's `max-height` stays in sync if
+   * appBar padding changes. */
+  --app-bar-h: calc(var(--touch-target) + var(--space-3) * 2 + 1px);
+
+  /* Pill bar full height (incl. padding + 1px top border + iOS safe
+   * area). Used to reserve room at the bottom of the tablet editor
+   * pane so its inspector strip clears the fixed pill bar. */
+  --pill-bar-h: calc(var(--touch-target) + var(--space-3) * 2 + 1px + env(safe-area-inset-bottom, 0px));
+
+  /* Inspector peek default height — fits a typical 3-row reflowed
+   * inspector (meta + type-select + actions) without dragging the
+   * handle. The body scrolls if a future inspector grows. */
+  --peek-h: 168px;
+
+  /* Radius ------------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-pill: 999px;
+
+  /* Typography scale --------------------------------------------------- */
+  --font-2xs: 9px;
+  --font-xs: 10px;
+  --font-sm: 11.5px;
+  --font-md: 12.5px;
+  --font-lg: 14px;
+  --font-xl: 16px;
+
+  /* Shadows ------------------------------------------------------------ */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.20);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.25);
+
+  /* Z-index ------------------------------------------------------------ */
+  /* Stack order — listed bottom → top so the file reads as the visual
+   * stack. Anything that sits above z-overlay should pull from this
+   * scale rather than picking a magic number. */
+  --z-sticky: 2;            /* ruler tracks pinned to the canvas frame */
+  --z-overlay: 3;           /* canvas-internal overlays (ripples etc.) */
+  --z-canvas-fab: 6;        /* floating fit-zoom button on the canvas */
+  --z-inspector-peek: 80;   /* phone inspector peek surface           */
+  --z-app-bar: 90;          /* phone top app bar                      */
+  --z-bottom-sheet: 100;    /* phone/tablet bottom sheets             */
+  --z-pill-bar: 110;        /* phone pill bar — above sheets so it    */
+                            /* stays tappable to dismiss the sheet     */
+  --z-toast: 1000;          /* transient notifications                */
+  --z-modal: 1100;          /* native <dialog> modals                 */
+  --z-skip-link: 10000;     /* focus-visible skip link                */
+}

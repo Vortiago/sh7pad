@@ -1,0 +1,57 @@
+/* Floating context menu opened by long-press on the canvas. Native
+ * <dialog>; positioned via inline style at the anchor, clamped to the
+ * viewport. Content is a small list of action buttons.
+ */
+
+dialog.cm-root {
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--borderStrong);
+  border-radius: var(--radius-md);
+  background: var(--panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  min-width: 180px;
+  max-width: 280px;
+  color: var(--text);
+
+  &::backdrop { background: transparent; }
+}
+
+.cm-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.cm-item {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-4) var(--space-5);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  min-height: var(--touch-target);
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--overlay); }
+
+  &.danger {
+    color: var(--danger);
+
+    &:hover { background: var(--dangerSoft); }
+  }
+}
+
+/* Read-only text row — same metrics as buttons but no hover/cursor
+ * affordance and the underlying element is a div, so SR users don't
+ * get a fake "button" announcement. */
+.cm-item-text {
+  cursor: default;
+  color: var(--textDim);
+  font-size: var(--font-sm);
+
+  &:hover { background: transparent; }
+}

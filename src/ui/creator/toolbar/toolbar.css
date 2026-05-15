@@ -1,0 +1,112 @@
+.ed-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  padding: var(--space-4) var(--space-5);
+  flex: 0 0 auto;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+
+  & select {
+    appearance: none;
+    background: var(--panelAlt);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-4);
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+    outline: none;
+  }
+}
+
+.ed-toolgroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ed-right { margin-left: auto; }
+
+.ed-tool-btn[data-active="true"],
+.ed-stitch-btn[data-active="true"],
+.ed-encoder-btn[data-active="true"] {
+  background: var(--accent);
+  color: var(--accentInk);
+  border-color: var(--accent);
+}
+
+/* Zoom buttons are visually denser than tool/stitch buttons (compact icon
+   row), so they don't share the .app-btn base. */
+.ed-zoom-btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--panelAlt);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) 0;
+  width: 28px;
+  font-size: var(--font-xl);
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover { background: var(--panel); }
+  &:active {
+    background: var(--accent);
+    color: var(--accentInk);
+  }
+}
+
+/* ---- Phone (≤639px) trims (Q5) ----
+ *
+ * Tools always visible. Stitch-type group only when Add tool is
+ * active. Zoom group dropped (pinch + the floating Fit button on the
+ * canvas wrap replace it). Stats string hidden — appBar's overflow
+ * menu surfaces it on demand.
+ */
+@media (max-width: 639px) {
+  /* Hide the zoom group at phone width. Targets the toolgroup whose
+   * label says ZOOM rather than the buttons themselves so the label
+   * disappears too. */
+  .ed-toolbar .ed-toolgroup:has(.ed-zoom-btn) { display: none; }
+
+  /* Allow groups to wrap so the contextual stitch-type sub-row drops
+   * to a second line below the tools rather than spilling off the
+   * right edge (Q5 — phone toolbar should wrap, not horizontal-scroll). */
+  .ed-toolbar {
+    flex-wrap: wrap;
+    gap: var(--space-3);
+  }
+
+  /* Stitch-type group: visible only when Add tool is active. */
+  body:not([data-active-tool='add']) .ed-toolbar .ed-toolgroup:has(.ed-stitch-btn) {
+    display: none;
+  }
+
+  /* When visible, force the stitch group onto its own line below the
+   * tool group. flex-basis: 100% breaks the row wherever the group
+   * sits among the toolbar's flex children. */
+  .ed-toolbar .ed-toolgroup:has(.ed-stitch-btn) { flex-basis: 100%; }
+
+  /* Stats string moves to the appBar overflow menu. */
+  .ed-toolbar .ed-right { display: none; }
+}
+
+/* ---- Tablet (640–1023px) — allow toolbar to wrap ----
+ *
+ * At ~768px the toolbar groups (tools + STITCH + ZOOM + stats) overflow
+ * the available width, clipping the trailing `+` zoom button and stats
+ * string. Phone solves this by dropping zoom + stats; tablet keeps both
+ * but lets the toolbar wrap onto a second row so nothing is clipped. */
+@media (min-width: 640px) and (max-width: 1023px) {
+  .ed-toolbar {
+    flex-wrap: wrap;
+    row-gap: var(--space-3);
+  }
+
+  /* The right-aligned stats group uses `margin-left: auto` to anchor it
+   * to the right edge. When the toolbar wraps, the `margin-left: auto`
+   * still pushes it to the right of the new row — useful for keeping
+   * the stats string visible at the row end. */
+}

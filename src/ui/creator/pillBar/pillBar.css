@@ -1,0 +1,48 @@
+/* Phone bottom pill bar — two 50% buttons toggling Projects/Stitches
+ * sheets. Below the toolbar; sticky to the bottom edge with safe-area
+ * padding for iOS home-bar avoidance.
+ */
+
+.pb-root {
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0));
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  /* Above the bottom-sheet (z-index 100) so the pill that opened the
+   * sheet stays visible + tappable; tapping the same pill again closes
+   * the sheet. Without this the user can only close via drag-handle
+   * or Esc, which is invisible on a touch device. */
+  z-index: var(--z-pill-bar);
+  position: relative;
+
+  /* Tablet variant — the desktop 3-col grid fills 100vh, so a normal-flow
+   * pillBar would sit below the viewport. Fix it to the bottom edge so
+   * it's reachable. Phone keeps `position: relative` because phone mode
+   * reflows body to flex-column and the pillBar lives in the flow. */
+  &[data-variant='tablet'] {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: var(--z-pill-bar);
+  }
+}
+
+.pb-pill {
+  appearance: none;
+  flex: 1 1 0;
+  min-height: var(--touch-target);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--borderStrong);
+  background: var(--panelAlt);
+  color: var(--text);
+  font: 600 14px/1.2 inherit;
+  cursor: pointer;
+
+  &[data-active='true'] {
+    background: var(--accent);
+    color: var(--accentInk);
+    border-color: var(--accent);
+  }
+}

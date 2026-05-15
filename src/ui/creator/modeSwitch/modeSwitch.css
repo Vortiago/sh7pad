@@ -1,0 +1,51 @@
+.ms-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.ms-wrap {
+  position: relative;
+  display: inline-flex;
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--overlay);
+  border: 1px solid var(--border);
+}
+
+.ms-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-pill);
+  font-family: inherit;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  letter-spacing: 0.02em;
+  color: var(--textDim);
+  transition: color 0.15s, background 0.15s;
+
+  &[data-active="true"] {
+    background: var(--accent);
+    color: var(--accentInk);
+
+    & .ms-kbd { background: rgba(255, 255, 255, 0.2); }
+  }
+}
+
+.ms-kbd {
+  font-size: var(--font-2xs);
+  font-weight: 500;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--overlay-strong);
+}
