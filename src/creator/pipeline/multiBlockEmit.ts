@@ -561,9 +561,10 @@ function runMultiBlock(opts: {
  * list (for the binary export) from a single chain-tracker run.
  *
  * Accepts loose `(points, segments, foot)` rather than a `Project` so
- * the legacy `renderStitchPath` facade — which has no Project — can
- * use the same walker. The foot drives planFoot's slot decisions for
- * every chain transition the walker emits.
+ * callers that don't have a full Project — e.g. tests that build a
+ * sequence from a points + segments pair — can use the same walker.
+ * The foot drives planFoot's slot decisions for every chain transition
+ * the walker emits.
  */
 export function emitDesignMultiBlock(
   points: readonly Point[],

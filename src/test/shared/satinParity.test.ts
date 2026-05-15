@@ -10,7 +10,7 @@ import { satinStitches, spineToEdges } from '../../shared/satinShape.js';
 import { renderEditorScene } from '../../ui/creator/editor/render.js';
 import { computeView } from '../../ui/creator/editor/view.js';
 import { newProject } from '../../creator/project.js';
-import { renderStitchPath } from '../../creator/stitchPath.js';
+import { encodeSegments } from '../../creator/pipeline/encodeSegments.js';
 import { foot } from '../../creator/foot.js';
 import type { Point, Project, Segment } from '../../creator/types.js';
 
@@ -70,7 +70,7 @@ describe('satin geometry parity (Slice 11)', () => {
     const { project, spec } = buildVerticalSatinProject();
     const expected = satinStitches(spineToEdges(spec), spec.density);
 
-    const seq = renderStitchPath(project.points, project.segments, foot('B'));
+    const seq = encodeSegments(project.points, project.segments, foot('B'));
     const satinSt = seq.filter((s) => s.kind !== 'start');
     expect(satinSt.length).toBe(expected.length + 1);
     expect(satinSt[0]!.x).toBeCloseTo(expected[0]!.start.x, 6);
