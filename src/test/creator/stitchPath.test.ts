@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { renderStitchPath } from '../../creator/stitchPath.js';
+import { encodeSegments } from '../../creator/pipeline/encodeSegments.js';
 import { foot } from '../../creator/foot.js';
 import { planFootGroupedBySegment } from '../../creator/carriagePlanner.js';
 import { trackFoot } from '../../creator/pipeline/trackFoot.js';
@@ -11,9 +11,9 @@ const FOOT_S = foot('S');
 
 const pt = (id: string, x: number, y: number): Point => ({ id, x, y });
 
-describe('renderStitchPath (Foot B / non-side-motion path)', () => {
+describe('encodeSegments (Foot B / non-side-motion path)', () => {
   it('returns an empty sequence for empty input', () => {
-    const seq = renderStitchPath([], [], FOOT_B);
+    const seq = encodeSegments([], [], FOOT_B);
     expect(seq).toEqual([]);
   });
 
@@ -22,7 +22,7 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
     const segments: Segment[] = [
       { id: 's1', from: 'ghost', to: 'a', type: 'straight' },
     ];
-    const seq = renderStitchPath(points, segments, FOOT_B);
+    const seq = encodeSegments(points, segments, FOOT_B);
     expect(seq).toEqual([]);
   });
 
@@ -35,7 +35,7 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
     // inside Foot B's ±4.5 mm reach).
     const points = [pt('a', 0, 0), pt('b', 6, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const seq = renderStitchPath(points, segments, FOOT_B);
+    const seq = encodeSegments(points, segments, FOOT_B);
     expect(seq).toHaveLength(5); // start + 1 Phase A + 3 walks
     expect(seq[0]).toMatchObject({ x: 0, y: 0, kind: 'start' });
     expect(seq[1]?.kind).toBe('needle');
@@ -49,7 +49,7 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
     // its start — beyond Foot B's ±4.5 mm reach. The unified planner refuses.
     const points = [pt('a', 0, 0), pt('b', 12, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    expect(() => renderStitchPath(points, segments, FOOT_B)).toThrow(
+    expect(() => encodeSegments(points, segments, FOOT_B)).toThrow(
       /Foot B \(Decorative\): carriage would exceed/,
     );
   });
@@ -57,7 +57,7 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
   it('a tiny straight segment (<1mm) still produces at least the end stitch', () => {
     const points = [pt('a', 0, 0), pt('b', 0.5, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const seq = renderStitchPath(points, segments, FOOT_B);
+    const seq = encodeSegments(points, segments, FOOT_B);
     expect(seq.length).toBeGreaterThanOrEqual(2);
     const last = seq[seq.length - 1]!;
     expect(last.x).toBeCloseTo(0.5);
@@ -70,7 +70,7 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
       { id: 's1', from: 'a', to: 'b', type: 'straight' },
       { id: 's2', from: 'b', to: 'c', type: 'straight' },
     ];
-    const seq = renderStitchPath(points, segments, FOOT_B);
+    const seq = encodeSegments(points, segments, FOOT_B);
     expect(seq[0]!.sourceIndex).toBe(-1); // start marker
     const seg0 = seq.filter((s) => s.sourceIndex === 0);
     const seg1 = seq.filter((s) => s.sourceIndex === 1);
@@ -84,7 +84,7 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
       id: 's1', from: 'a', to: 'b', type: 'satin',
       widthStart: 4, widthEnd: 4, density: 1,
     }];
-    const seq = renderStitchPath(points, segments, FOOT_B);
+    const seq = encodeSegments(points, segments, FOOT_B);
     const satinStitches = seq.filter((s) => s.kind !== 'start');
     const first = satinStitches[0]!;
     const last = satinStitches[satinStitches.length - 1]!;
@@ -98,7 +98,7 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
       id: 's1', from: 'a', to: 'b', type: 'satin',
       widthStart: 2, widthEnd: 6, density: 1,
     }];
-    const stitches = renderStitchPath(points, segments, FOOT_B)
+    const stitches = encodeSegments(points, segments, FOOT_B)
       .filter((s) => s.kind !== 'start');
     const offsets = stitches.map((s) => Math.abs(s.x));
     const first = offsets[0]!;
@@ -116,8 +116,8 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
       id: 's1', from: 'a', to: 'b', type: 'satin',
       widthStart: 2, widthEnd: 2, density: 2,
     }];
-    const denseSeq = renderStitchPath(points, dense, FOOT_B);
-    const sparseSeq = renderStitchPath(points, sparse, FOOT_B);
+    const denseSeq = encodeSegments(points, dense, FOOT_B);
+    const sparseSeq = encodeSegments(points, sparse, FOOT_B);
     expect(denseSeq.length).toBeGreaterThan(sparseSeq.length);
   });
 
@@ -129,17 +129,17 @@ describe('renderStitchPath (Foot B / non-side-motion path)', () => {
     // bytes start with `(dx=0, dy=0)` for exactly this reason).
     const points = [pt('a', 5, 5), pt('b', 5, 5)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const seq = renderStitchPath(points, segments, FOOT_B);
+    const seq = encodeSegments(points, segments, FOOT_B);
     expect(seq.length).toBeGreaterThanOrEqual(2);
-    expect(() => renderStitchPath(points, segments, FOOT_B)).not.toThrow();
+    expect(() => encodeSegments(points, segments, FOOT_B)).not.toThrow();
   });
 });
 
-describe('renderStitchPath — Foot S preview matches the planner record sequence', () => {
+describe('encodeSegments — Foot S preview matches the planner record sequence', () => {
   it('a 20mm horizontal segment under Foot S: 1 leading needle to the slot edge, then walks of ≤ 1 mm', () => {
     const points = [pt('a', 0, 0), pt('b', 20, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const stitches = renderStitchPath(points, segments, FOOT_S);
+    const stitches = encodeSegments(points, segments, FOOT_S);
     // start + 1 Phase A short + 17 Phase B pieces. (132 raw remaining
     // after Phase A; n = ceil(132/8) = 17, with the last piece carrying
     // the 4-raw remainder.)
@@ -163,7 +163,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
   it('a small in-window segment under Foot S emits one stitch at the endpoint', () => {
     const points = [pt('a', 0, 0), pt('b', 0.5, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const stitches = renderStitchPath(points, segments, FOOT_S);
+    const stitches = encodeSegments(points, segments, FOOT_S);
     expect(stitches).toHaveLength(2);
     expect(stitches[1]?.x).toBeCloseTo(0.5, 5);
   });
@@ -172,7 +172,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
     // 3 mm ≤ slot half (3.5 mm) → single in-window needle.
     const points = [pt('a', 0, 0), pt('b', 3, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const stitches = renderStitchPath(points, segments, FOOT_S);
+    const stitches = encodeSegments(points, segments, FOOT_S);
     expect(stitches).toHaveLength(2);
     expect(stitches[1]?.x).toBeCloseTo(3, 5);
     expect(stitches[1]?.kind).toBe('needle');
@@ -184,7 +184,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
     // so every record is a needle.
     const points = [pt('a', 0, 0), pt('b', 0, 12)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const stitches = renderStitchPath(points, segments, FOOT_S);
+    const stitches = encodeSegments(points, segments, FOOT_S);
     expect(stitches).toHaveLength(4); // start + 3 Y-cap pieces
     expect(stitches[3]?.y).toBeCloseTo(12, 5);
     for (let i = 1; i <= 3; i++) expect(stitches[i]?.kind).toBe('needle');
@@ -199,7 +199,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
     // planner targets the line at each piece's endpoint.
     const points = [pt('a', 0, 0), pt('b', 10, 5)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const stitches = renderStitchPath(points, segments, FOOT_S);
+    const stitches = encodeSegments(points, segments, FOOT_S);
     expect(stitches).toHaveLength(9); // start + 1 Phase A + 7 Phase B
     expect(stitches[1]?.x).toBeCloseTo(3.5, 5);
     expect(stitches[1]?.y).toBeCloseTo(1.75, 5);
@@ -215,7 +215,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
   it('preserves negative dx direction', () => {
     const points = [pt('a', 10, 0), pt('b', 0, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const stitches = renderStitchPath(points, segments, FOOT_S);
+    const stitches = encodeSegments(points, segments, FOOT_S);
     expect(stitches).toHaveLength(9); // start + 1 Phase A + 7 walks
     // Phase A short pushes the needle 3.5 mm leftward to the slot edge.
     expect(stitches[1]?.x).toBeCloseTo(6.5, 5);
@@ -229,13 +229,13 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
   it('Foot S stitch kinds match the planner (in-window=needle, busted segment = leading needle + trailing jumps)', () => {
     const inWindow: Point[] = [pt('a', 0, 0), pt('b', 3, 0)];
     const segIn: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const inSeq = renderStitchPath(inWindow, segIn, FOOT_S);
+    const inSeq = encodeSegments(inWindow, segIn, FOOT_S);
     expect(inSeq).toHaveLength(2);
     expect(inSeq[1]?.kind).toBe('needle');
 
     const busts: Point[] = [pt('a', 0, 0), pt('b', 10, 0)];
     const segBust: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const bustSeq = renderStitchPath(busts, segBust, FOOT_S);
+    const bustSeq = encodeSegments(busts, segBust, FOOT_S);
     expect(bustSeq).toHaveLength(9);
     // Piece 1: one Phase-A needle reaching the slot edge.
     // Pieces 2..8: walks of 1 mm each.
@@ -246,7 +246,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
   it('Foot S carriage (via trackFoot) stays planted under Phase A, then advances per jump piece', () => {
     const points = [pt('a', 0, 0), pt('b', 10, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const seq = renderStitchPath(points, segments, FOOT_S);
+    const seq = encodeSegments(points, segments, FOOT_S);
     expect(seq).toHaveLength(9);
     const track = trackFoot(seq);
     // Phase A: needle reaches the slot edge, carriage planted at 0.
@@ -261,7 +261,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
     // carriage stays planted at 0.
     const planted = [pt('a', 0, 0), pt('b', 3, 0)];
     const segPlanted: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const plantedSeq = renderStitchPath(planted, segPlanted, FOOT_S);
+    const plantedSeq = encodeSegments(planted, segPlanted, FOOT_S);
     const plantedTrack = trackFoot(plantedSeq);
     expect(plantedTrack[1]?.carriageXMm).toBeCloseTo(0, 5);
   });
@@ -269,7 +269,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
   it('Foot S stitch positions equal planner record end positions exactly', () => {
     const points = [pt('a', 0, 0), pt('b', 10, 5)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const seq = renderStitchPath(points, segments, FOOT_S);
+    const seq = encodeSegments(points, segments, FOOT_S);
 
     const groupedResult = planFootGroupedBySegment(
       FOOT_S,
@@ -301,7 +301,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
     // when reach is exceeded.
     const points = [pt('a', 0, 0), pt('b', 6, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const seq = renderStitchPath(points, segments, FOOT_B);
+    const seq = encodeSegments(points, segments, FOOT_B);
     const track = trackFoot(seq);
     // start + Phase A needle: carriage planted at 0.
     expect(track[0]?.carriageXMm).toBeCloseTo(0, 5);
@@ -317,7 +317,7 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
   it('start stitch is emitted regardless of foot', () => {
     const points = [pt('a', 0, 0), pt('b', 10, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const stitches = renderStitchPath(points, segments, FOOT_S);
+    const stitches = encodeSegments(points, segments, FOOT_S);
     expect(stitches[0]?.kind).toBe('start');
   });
 
@@ -327,11 +327,11 @@ describe('renderStitchPath — Foot S preview matches the planner record sequenc
     // per-foot difference is reach, and neither foot busts it here.
     const points = [pt('a', 0, 0), pt('b', 6, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
-    const footS = renderStitchPath(points, segments, FOOT_S);
-    const footB = renderStitchPath(points, segments, FOOT_B);
+    const footS = encodeSegments(points, segments, FOOT_S);
+    const footB = encodeSegments(points, segments, FOOT_B);
     expect(footS.length).toBe(5);
     expect(footB.length).toBe(5);
-    const footSAgain = renderStitchPath(points, segments, FOOT_S);
+    const footSAgain = encodeSegments(points, segments, FOOT_S);
     expect(footSAgain.length).toBe(5);
   });
 });

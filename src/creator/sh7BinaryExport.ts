@@ -1,11 +1,8 @@
-// Project → bytes pipeline. Drives the per-chunk encoders in
-// sh7Codec.ts to turn a Project into a complete .sh7 file.
-//
-// The byte primitives (encodeShortStitch, encodeJumpStitch,
-// encodeStitches, encodeChunk, encodeGeometryWrapper, encode05Chunk,
-// encode06Block, etc.) live in sh7Codec.ts and are re-exported here
-// for backwards compatibility with existing test imports. New code
-// should import them from sh7Codec.ts directly.
+// Project → bytes pipeline. Drives the per-chunk encoders in sh7Codec.ts
+// to turn a Project into a complete .sh7 file. The byte primitives
+// themselves (encodeShortStitch, encodeChunk, encode06Block, etc.) live
+// in sh7Codec.ts — import from there directly when writing tests or
+// probes that build chunks by hand.
 
 import { validate } from '../parser/validateSh7Bytes.js';
 import {
@@ -19,13 +16,9 @@ import {
 import { auditDesignBounds, auditPerRecordEnvelope } from './designEnvelope.js';
 import { projectDraft } from './designSource.js';
 import { sequenceFromProject } from './pipeline/encodeDesign.js';
-import {
-  type DesignBlockDraft as SharedDesignBlockDraft,
-  type ElementBlockDraft as SharedElementBlockDraft,
-  type SatinBlockDraft as SharedSatinBlockDraft,
-  type StitchInput as SharedStitchInput,
-  type ShortStitchInput as SharedShortStitchInput,
-  type JumpStitchInput as SharedJumpStitchInput,
+import type {
+  DesignBlockDraft,
+  StitchInput,
 } from './pipeline/multiBlockEmit.js';
 import type { Project } from './types.js';
 import {
@@ -47,41 +40,6 @@ import {
   headerByteLengthFor,
   SH7PAD_PRODUCER_STRING,
 } from './sh7Codec.js';
-
-// Re-exports for backwards compatibility — tests and probes that import
-// from this module continue to work without changes. The byte
-// primitives themselves live in sh7Codec.ts.
-export {
-  encodeShortStitch,
-  encodeJumpStitch,
-  encodeStitches,
-  coneEdgesToSatinPayload,
-  encodeSatinPayload,
-  encodeChunk,
-  encodeGeometryWrapper,
-  encode05Chunk,
-  encode06Block,
-  encode06BlockMulti,
-  encode05ChunkMulti,
-  encodeMetadataTable,
-  encodeHeader,
-  headerByteLengthFor,
-  SH7PAD_PRODUCER_STRING,
-} from './sh7Codec.js';
-export type {
-  GeometryWrapperInput,
-  O5ChunkInput,
-  O5MultiChunkInput,
-  O6BlockInput,
-} from './sh7Codec.js';
-
-export type ShortStitchInput = SharedShortStitchInput;
-export type JumpStitchInput = SharedJumpStitchInput;
-export type StitchInput = SharedStitchInput;
-
-export type ElementBlockDraft = SharedElementBlockDraft;
-export type SatinBlockDraft = SharedSatinBlockDraft;
-export type DesignBlockDraft = SharedDesignBlockDraft;
 
 /**
  * Fields every chunk-class draft carries: the 0x06 fields that are emitted

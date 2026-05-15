@@ -16,7 +16,7 @@ import {
   migrateProject,
   addPointToProject,
 } from '../../creator/project.js';
-import { encode06Block } from '../../creator/sh7BinaryExport.js';
+import { encode06Block } from '../../creator/sh7Codec.js';
 import type { Project } from '../../creator/types.js';
 
 describe('SH7_MAX_Y_MM', () => {
