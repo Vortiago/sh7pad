@@ -27,7 +27,7 @@ npm run test:e2e  # playwright (first run: `npx playwright install chromium`)
 npm run build     # production build (writes to dist/)
 ```
 
-Requires Node 20+.
+Requires Node 24+.
 
 ## Filing a bug
 
