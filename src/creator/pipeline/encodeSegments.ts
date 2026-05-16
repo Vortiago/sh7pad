@@ -90,12 +90,15 @@ export function encodeSegments(
 
 /**
  * Build the leading `'start'` marker + **Start Stitch** needle record
- * that prefix every encoded sequence. The 'start' marker represents
- * the machine's initial state (cursor at design origin (0, 0), carriage
- * at the Carriage Start). The Start Stitch is a real needle record
- * with `dx = round(startStitchXMm * X_UNITS_PER_MM)`, `dy = 0` — by
- * construction `|dx| ≤ NEEDLE_SLOT_HALF_MM × X_UNITS_PER_MM = 28 raw`,
- * which fits a short-stitch record.
+ * that prefix every encoded sequence. The 'start' marker is pinned to
+ * the **Start Stitch** position so the preview's polyline (pathOf) does
+ * not draw a phantom segment from machine origin to startStitch.x —
+ * the marker and the leading needle share an (x, y), giving a zero-
+ * length pseudo-segment that renders as nothing. The Start Stitch is
+ * still emitted as a real needle record with `dx = round(startStitchXMm
+ * * X_UNITS_PER_MM)`, `dy = 0` (by construction `|dx| ≤
+ * NEEDLE_SLOT_HALF_MM × X_UNITS_PER_MM = 28 raw`, fits a short record)
+ * so the .sh7 byte stream is unchanged.
  *
  * After the Start Stitch the cursor sits at design coord
  * (`startStitchXMm`, 0); subsequent user segments encode normally
@@ -104,7 +107,7 @@ export function encodeSegments(
 export function prependStartFrames(startXMm: number, startStitchXMm: number): Stitch[] {
   const dxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
   return [
-    { kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: startXMm },
+    { kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: startXMm },
     {
       kind: 'needle',
       x: startStitchXMm,

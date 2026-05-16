@@ -110,7 +110,12 @@ export function createEditorInteract(
     // at the Eye edge by the store invariant (clampStartStateToEye).
     // Locked alongside the carriage in manual mode after the first
     // user stitch.
-    if (startStitchGroup && action !== 'pan') {
+    //
+    // Click-through in Add: the Start Stitch hit rect spans the entire
+    // Needle Slot — the same region where manual users place their first
+    // stitches. Intercepting Add-tool clicks here would make the slot
+    // un-clickable. Fall through to the add-point branch instead.
+    if (startStitchGroup && action !== 'pan' && action !== 'add') {
       const locked = startStitchGroup.getAttribute('data-locked') === 'true';
       ev.preventDefault();
       if (!locked) {
@@ -123,8 +128,10 @@ export function createEditorInteract(
     // Carriage Start marker (the foot icon) — drag in any tool to slide
     // the carriage along X. Drags the Start Stitch along (drag-along
     // behavior in clampStartStateToEye). Locked in manual mode once
-    // the first user stitch is placed.
-    if (startGroup && action !== 'pan') {
+    // the first user stitch is placed. Click-through in Add mode for the
+    // same reason as the Start Stitch above — the foot body sits over
+    // the canvas region where the user expects to place stitches.
+    if (startGroup && action !== 'pan' && action !== 'add') {
       const locked = startGroup.getAttribute('data-locked') === 'true';
       ev.preventDefault();
       if (!locked) {

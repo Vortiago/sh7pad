@@ -73,14 +73,25 @@ describe('sequenceFromProject — manual branch wraps stored stitches', () => {
     ]);
   });
 
-  it("start marker sits at machine origin; the **Start Stitch** sits at startStitch.x", () => {
-    // Y-axis values on points[0] are normalised to 0 by lockFirstPoint
-    // (the Start Stitch is always at Y=0). The 'start' marker reports
-    // the cursor BEFORE any record runs (machine origin = (0, 0)).
+  it("start marker is pinned to the Start Stitch position so the polyline preview draws no phantom segment", () => {
+    // The leading 'start' marker shares (x, y) with the Start Stitch
+    // needle that follows. With matching coords the preview's pathOf
+    // emits a zero-length pseudo-segment instead of a visible line from
+    // machine origin to the Start Stitch — fixing the user-reported
+    // phantom segment at (0, 0). Y is always 0 (lockFirstPoint
+    // normalises any non-zero points[0].y to 0).
     const base = newProject('M', { idGen, mode: 'manual', suggestedFoot: 'B' });
-    const project: Project = { ...base, points: [{ id: 'a', x: 0, y: 7 }] };
+    const project: Project = {
+      ...base,
+      points: [{ id: 'a', x: 0, y: 7 }],
+      startStitch: { x: 0 },
+    };
     const seq = sequenceFromProject(project);
     expect(seq[0]).toEqual({ kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: 0 });
+    // Offsetting the Start Stitch drags the marker with it.
+    const offset: Project = { ...project, startStitch: { x: 2 } };
+    const offsetSeq = sequenceFromProject(offset);
+    expect(offsetSeq[0]).toMatchObject({ kind: 'start', x: 2, y: 0 });
   });
 
   it('foot id does not affect the manual branch (no encoder, no planner)', () => {
