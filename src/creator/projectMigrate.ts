@@ -4,7 +4,7 @@
 // then enforces the first-point-at-X=0 invariant.
 
 import type { Point, Project, SatinSegment, Segment } from './types.js';
-import { DEFAULT_FOOT_ID } from './foot.js';
+import { DEFAULT_FOOT_ID, NEEDLE_SLOT_HALF_MM, foot } from './foot.js';
 import { clampHoopH, clampStitchY } from './sh7Limits.js';
 import {
   DEFAULT_THREAD_TENSION,
@@ -42,6 +42,23 @@ export function migrateProject(project: Project): Project {
   }
   if (typeof p.startXMm !== 'number' || Number.isNaN(p.startXMm)) {
     p = { ...p, startXMm: 0 };
+  }
+  // Clamp legacy Carriage Start to ±NEEDLE_SLOT_HALF_MM so a project
+  // saved with startXMm at e.g. +12mm (legal in the old model, illegal
+  // in the new eye-constraint model) loads cleanly.
+  const reachHalf = foot(p.suggestedFoot).carriageReachHalfMm;
+  const clampedStart = Math.min(NEEDLE_SLOT_HALF_MM, Math.max(-NEEDLE_SLOT_HALF_MM, p.startXMm ?? 0));
+  if ((p.startXMm ?? 0) !== clampedStart) {
+    p = { ...p, startXMm: Math.min(reachHalf, Math.max(-reachHalf, clampedStart)) };
+  }
+  // Synthesize the Start Stitch at (0, 0) for legacy projects — the
+  // old `lockFirstPoint` always pinned points[0].x to 0, so the
+  // canonical Start Stitch X is 0 by construction. The hoop-rewrite
+  // step below may shift points[0] off-zero (via re-centering); the
+  // final lockFirstPoint pass at the end of this function snaps
+  // points[0] back to the canonical Start Stitch position.
+  if (!p.startStitch || typeof p.startStitch.x !== 'number' || Number.isNaN(p.startStitch.x)) {
+    p = { ...p, startStitch: { x: 0 } };
   }
   if (typeof p.threadTension !== 'number' || Number.isNaN(p.threadTension)) {
     p = { ...p, threadTension: DEFAULT_THREAD_TENSION };

@@ -28,15 +28,16 @@ describe('sequenceFromProject', () => {
     );
   });
 
-  it('returns start + N stitches for a manual project with N stitches', () => {
+  it('returns start + Start Stitch + N stitches for a manual project with N stitches', () => {
     let p = newProject('A', { idGen, mode: 'manual', suggestedFoot: 'S' });
     p = addManualStitch(p, { kind: 'needle', x: 1, y: 0 });
     p = addManualStitch(p, { kind: 'needle', x: 2, y: 1 });
     const seq = sequenceFromProject(p);
-    expect(seq).toHaveLength(3);
+    expect(seq).toHaveLength(4);
     expect(seq[0]).toMatchObject({ kind: 'start', x: 0, y: 0 });
-    expect(seq[1]).toMatchObject({ kind: 'needle', x: 1, y: 0 });
-    expect(seq[2]).toMatchObject({ kind: 'needle', x: 2, y: 1 });
+    expect(seq[1]).toMatchObject({ kind: 'needle', x: 0, y: 0 }); // Start Stitch
+    expect(seq[2]).toMatchObject({ kind: 'needle', x: 1, y: 0 });
+    expect(seq[3]).toMatchObject({ kind: 'needle', x: 2, y: 1 });
   });
 
   it('returns just the start marker for an empty manual project', () => {
@@ -59,7 +60,8 @@ describe('sequenceFromProject', () => {
     let p = newProject('A', { idGen, mode: 'manual', suggestedFoot: 'S' });
     p = addManualStitch(p, { kind: 'needle', x: 1, y: 0 });
     const seq = sequenceFromProject(p);
-    const s = seq[1]!;
+    // seq = [start, Start Stitch needle (dx=0), user-needle (dx=8)]
+    const s = seq[2]!;
     if (s.kind !== 'start') {
       expect(s.dxRaw).toBe(8); // 1 mm × 8 raw/mm
       expect(s.dyRaw).toBe(0);
@@ -88,9 +90,11 @@ describe('sequenceFromProject', () => {
     const uniformProject = buildSlotFittingProject({ encoderMode: 'uniform' });
     const seqCompact = sequenceFromProject(compactProject);
     const seqUniform = sequenceFromProject(uniformProject);
+    // Both include the Start Stitch leading needle (1 record); compact
+    // adds 1 user needle, uniform adds 3.
     const needleCompact = seqCompact.filter((s) => s.kind === 'needle').length;
     const needleUniform = seqUniform.filter((s) => s.kind === 'needle').length;
-    expect(needleCompact).toBe(1);
+    expect(needleCompact).toBe(2); // Start Stitch + 1 user
     expect(needleUniform).toBeGreaterThan(needleCompact);
   });
 });

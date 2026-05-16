@@ -479,6 +479,14 @@ function runMultiBlock(opts: {
   items: Iterable<WalkerItem>;
   /** Carriage X at design start (mm); see MultiBlockBuilderOptions. */
   initialCarriageXMm?: number;
+  /**
+   * **Start Stitch** X (mm). Prepended as a leading needle short with
+   * `dx = round(startStitchXMm * X_UNITS_PER_MM)`, `dy = 0` — the first
+   * machine record in the sequence and in the first element block.
+   * Defaults to 0 (no offset; the leading record is a no-op needle drop
+   * at the chain anchor).
+   */
+  startStitchXMm?: number;
 }): MultiBlockEmitResult {
   const { minXmm, minYmm } = originXY(opts.initialChain, opts.bboxPoints());
 
@@ -503,8 +511,8 @@ function runMultiBlock(opts: {
   const finalized = builder.finalize();
   const sequence = buildSequenceWithStartMarker(
     finalized.flatStitches,
-    opts.initialChain,
     opts.initialCarriageXMm ?? 0,
+    opts.startStitchXMm ?? 0,
   );
   const blocks = resolveBlockOffsets(
     finalized.blocks,
@@ -512,6 +520,7 @@ function runMultiBlock(opts: {
     opts.initialChain,
     minXmm,
     minYmm,
+    opts.startStitchXMm ?? 0,
   );
   return { sequence, blocks };
 }
@@ -522,19 +531,24 @@ function runMultiBlock(opts: {
  * contributing manual stitches) yield an empty sequence — matching the
  * "nothing to render" shape also returned by safeSequenceFromProject on
  * FootEncodeException. Non-empty walks get a chain-anchor 'start' marker
- * prepended, carrying the configured initial carriage position.
+ * prepended at design (0, 0), followed by the **Start Stitch** needle
+ * record at `(startStitchXMm, 0)` — the first real machine record.
  */
 function buildSequenceWithStartMarker(
   flatStitches: readonly Stitch[],
-  initialChain: { x: number; y: number },
   initialCarriageXMm: number,
+  startStitchXMm: number,
 ): StitchSequence {
   if (flatStitches.length === 0) return [];
+  const startDxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
   return [
+    { kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: initialCarriageXMm },
     {
-      kind: 'start',
-      x: initialChain.x,
-      y: initialChain.y,
+      kind: 'needle',
+      x: startStitchXMm,
+      y: 0,
+      dxRaw: startDxRaw,
+      dyRaw: 0,
       sourceIndex: -1,
       carriageXMm: initialCarriageXMm,
     },
@@ -544,9 +558,10 @@ function buildSequenceWithStartMarker(
 
 /**
  * Resolve element-block xElem/yPos from the parallel blockStarts array,
- * and fix up satin-block interstitials so each cone's min-X / chain-Y
- * sits in design-relative µm. Pure function of the finalized block list
- * plus the design origin — same logic regardless of authoring mode.
+ * fix up satin-block interstitials so each cone's min-X / chain-Y sits
+ * in design-relative µm, and inject the **Start Stitch** as the leading
+ * short record in the FIRST element block so the binary export emits it
+ * as machine record #1. Pure function — same logic regardless of mode.
  */
 function resolveBlockOffsets(
   blocks: readonly DesignBlockDraft[],
@@ -554,16 +569,24 @@ function resolveBlockOffsets(
   initialChain: { x: number; y: number },
   minXmm: number,
   minYmm: number,
+  startStitchXMm: number,
 ): DesignBlockDraft[] {
+  const startDxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
+  let startStitchInjected = startStitchXMm === 0; // skip injection on no-op
   const out: DesignBlockDraft[] = [];
   let runningChainY = initialChain.y;
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i]!;
     if (b.kind === 'element') {
       const start = blockStarts[i] ?? initialChain;
+      let elemStitches = b.stitches;
+      if (!startStitchInjected) {
+        elemStitches = [{ kind: 'short', dxRaw: startDxRaw, dyRaw: 0 }, ...b.stitches];
+        startStitchInjected = true;
+      }
       out.push({
         kind: 'element',
-        stitches: b.stitches,
+        stitches: elemStitches,
         xElem: Math.round((start.x - minXmm) * 1000),
         yPos: Math.round((start.y - minYmm) * 1500),
       });
@@ -603,6 +626,7 @@ export function emitDesignMultiBlock(
   foot: Foot,
   planOpts: PlanFootOptions = {},
   initialCarriageXMm = 0,
+  startStitchXMm = 0,
 ): MultiBlockEmitResult {
   const byId = new Map<string, Point>();
   for (const p of points) byId.set(p.id, p);
@@ -654,6 +678,7 @@ export function emitDesignMultiBlock(
     bboxPoints,
     items: items(),
     initialCarriageXMm,
+    startStitchXMm,
   });
 }
 
@@ -667,6 +692,7 @@ export function emitManualMultiBlock(
   foot: Foot,
   planOpts: PlanFootOptions = {},
   initialCarriageXMm = 0,
+  startStitchXMm = 0,
 ): MultiBlockEmitResult {
   const start = project.points[0] ?? { x: 0, y: 0 };
   const edgesByStitchIdx = new Map<number, ConeEdges>();
@@ -716,5 +742,6 @@ export function emitManualMultiBlock(
     bboxPoints,
     items: items(),
     initialCarriageXMm,
+    startStitchXMm,
   });
 }

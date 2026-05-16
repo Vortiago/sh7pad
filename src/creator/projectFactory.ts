@@ -51,17 +51,29 @@ export function newProject(name = 'Untitled', opts: NewProjectOptions = {}): Pro
     segments: [],
     manualStitches: [],
     startXMm: 0,
+    startStitch: { x: 0 },
     bg: null,
   };
 }
 
 /**
- * Resolved carriage-start X for a project. Falls back to 0 when the
+ * Resolved **Carriage Start** X for a project. Falls back to 0 when the
  * field is missing (projects predating startXMm). Centralised so every
  * pipeline / preview / encoder consumer reads the same default rule.
  */
 export function startXMmOf(project: Project): number {
   return project.startXMm ?? 0;
+}
+
+/**
+ * Resolved **Start Stitch** position for a project. Y is always 0. X
+ * defaults to the synthetic-mirror `points[0].x` (or 0) for projects
+ * predating the dedicated field. Centralised so every consumer reads
+ * the same default rule.
+ */
+export function startStitchOf(project: Project): { x: number; y: 0 } {
+  const x = project.startStitch?.x ?? project.points[0]?.x ?? 0;
+  return { x, y: 0 };
 }
 
 /**

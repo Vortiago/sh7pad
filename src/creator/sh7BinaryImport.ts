@@ -28,6 +28,7 @@ import type { ElementStep, ParsedDesign, SatinSection } from '../parser/types.js
 import type { FootId } from './foot.js';
 import { newPointId, newSegmentId } from './ids.js';
 import { DEFAULT_SATIN_DENSITY_MM, newProject } from './project.js';
+import { NEEDLE_SLOT_HALF_MM } from './foot.js';
 import type {
   ManualSatinSegment,
   ManualStitchInput,
@@ -153,11 +154,75 @@ export function parsedStitchFileToProject(
   // Translate every point so the chain anchor lands at the project's (0, 0).
   shiftPointsToChainAnchor(points, firstPoint);
 
+  const carriageStart = importedStartXMm(design, firstPoint);
+  // **Start Stitch** compat-match: if the file's first record is a
+  // needle drop that fits the Eye relative to the imported carriage,
+  // consume it as the Start Stitch. Removes the redundant first
+  // segment so a sh7pad → .sh7 → sh7pad round-trip is byte-identical.
+  const matched = matchLeadingStartStitchDesign(points, segments, carriageStart);
+
   return {
     ...proj,
-    points,
-    segments,
-    startXMm: importedStartXMm(design, firstPoint),
+    points: matched.points,
+    segments: matched.segments,
+    startXMm: carriageStart,
+    startStitch: { x: matched.startStitchX },
+  };
+}
+
+/**
+ * Inspect the leading element step of an imported design and decide
+ * whether to consume it as the **Start Stitch**.
+ *
+ * Match criteria:
+ *   • At least one user step exists (points.length ≥ 2 after the chain
+ *     anchor).
+ *   • The first step lands at Y = 0 (no Y motion → matches the Start
+ *     Stitch's dy = 0 invariant).
+ *   • The first step's landing X sits inside the Eye relative to the
+ *     imported Carriage Start (`|landing.x − carriageStart| ≤
+ *     needleSlotHalfMm`).
+ *   • The first segment connecting the chain anchor to the landing is
+ *     a straight (a satin segment is never the Start Stitch).
+ *
+ * On match, the chain anchor and the first segment are dropped; the
+ * landing point becomes the new `points[0]` and its X becomes
+ * `startStitch.x`. On no match, the chain anchor stays and the
+ * synthesized `startStitch.x = 0` is returned (matches a fresh
+ * project; the encoder will emit a `(0, 0)` no-op leading needle on
+ * re-export).
+ */
+function matchLeadingStartStitchDesign(
+  points: Point[],
+  segments: Segment[],
+  carriageStart: number,
+): { points: Point[]; segments: Segment[]; startStitchX: number } {
+  if (points.length < 2 || segments.length === 0) {
+    return { points, segments, startStitchX: 0 };
+  }
+  const anchor = points[0]!;
+  const firstSeg = segments[0]!;
+  if (firstSeg.type !== 'straight' || firstSeg.from !== anchor.id) {
+    return { points, segments, startStitchX: 0 };
+  }
+  const landing = points.find((p) => p.id === firstSeg.to);
+  if (!landing) return { points, segments, startStitchX: 0 };
+  const dyMm = landing.y - anchor.y;
+  if (Math.abs(dyMm) > 1e-6) {
+    return { points, segments, startStitchX: 0 };
+  }
+  const startStitchX = landing.x - anchor.x;
+  if (Math.abs(startStitchX - carriageStart) > NEEDLE_SLOT_HALF_MM + 1e-6) {
+    return { points, segments, startStitchX: 0 };
+  }
+  // Consume the leading needle as the Start Stitch. Drop the chain
+  // anchor and the first segment; the landing point is the new
+  // `points[0]` (its id stays the same, so subsequent segments that
+  // reference it as `from` keep working).
+  return {
+    points: points.filter((p) => p.id !== anchor.id),
+    segments: segments.slice(1),
+    startStitchX,
   };
 }
 
@@ -326,10 +391,37 @@ export function parsedStitchFileToManualProject(
 
   centerManualStitchesAtChainAnchor(stitches, firstPoint);
 
+  const carriageStart = importedStartXMm(design, firstPoint);
+  // **Start Stitch** compat-match for manual mode: same criteria as
+  // the design importer — first manual stitch is consumed when it's a
+  // needle with dy = 0 that fits the Eye.
+  const matched = matchLeadingStartStitchManual(stitches, carriageStart);
+
   return {
     ...proj,
-    manualStitches: stitches,
-    startXMm: importedStartXMm(design, firstPoint),
+    manualStitches: matched.stitches,
+    startXMm: carriageStart,
+    startStitch: { x: matched.startStitchX },
+  };
+}
+
+function matchLeadingStartStitchManual(
+  stitches: ManualStitchInput[],
+  carriageStart: number,
+): { stitches: ManualStitchInput[]; startStitchX: number } {
+  const first = stitches[0];
+  if (!first || first.kind !== 'needle') {
+    return { stitches, startStitchX: 0 };
+  }
+  if (Math.abs(first.y) > 1e-6) {
+    return { stitches, startStitchX: 0 };
+  }
+  if (Math.abs(first.x - carriageStart) > NEEDLE_SLOT_HALF_MM + 1e-6) {
+    return { stitches, startStitchX: 0 };
+  }
+  return {
+    stitches: stitches.slice(1),
+    startStitchX: first.x,
   };
 }
 

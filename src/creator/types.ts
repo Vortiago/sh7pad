@@ -158,23 +158,39 @@ export interface Project {
   manualStitches: ManualStitchInput[];
   /**
    * Carriage's X position (mm) at design start — the slot's centre when
-   * the firmware loads the file. Sewn `.sh7` files encode this in the
-   * geometry wrapper's `xElem` field (= `-startXMm × 1000` µm); the
-   * firmware reads it to place the carriage so the first run's cursor
-   * sweep fits within ±needleSlotHalfMm of the carriage. Imported
-   * designs set this from `xElem`; new projects default to 0
-   * (carriage at the chain anchor). Visible as a draggable "start"
-   * marker on the editor canvas.
+   * the firmware loads the file. Encoded in the geometry wrapper's
+   * `xElem` field (= `-startXMm × 1000` µm); the firmware places the
+   * carriage there before the first machine record runs.
    *
-   * Constraint: while `points.length === 0`, the start is freely
-   * placeable. Once any point or manual stitch exists, the start must
-   * stay within `needleSlotHalfMm` of the chain anchor (points[0]) on X
-   * so the firmware's first slot decision is satisfiable. The store
-   * invariant clamps any setState that violates this.
+   * Constraint: bounded by `±carriageReachHalfMm` on its own AND by the
+   * requirement that the **Start Stitch** sit inside the Needle Slot
+   * (`|startStitch.x − startXMm| ≤ needleSlotHalfMm`). Dragging the
+   * carriage in the editor drags the Start Stitch along so the slot
+   * constraint stays satisfied (drag-along behavior).
+   *
+   * Locked in Manual Mode once any user stitch is placed (Start Lock).
    *
    * Optional so projects predating this field default to 0.
    */
   startXMm?: number;
+  /**
+   * The **Start Stitch** — the first needle drop in the design. A real
+   * machine record encoded as a normal dx/dy short stitch. Y is always 0
+   * (not stored). X is bounded by `|startStitch.x − startXMm| ≤
+   * needleSlotHalfMm` (must sit inside the Needle Slot). In a fresh
+   * project sits at (0, 0). Slidable in Design Mode at any time;
+   * slidable in Manual Mode until the first user stitch is placed,
+   * then frozen by the Start Lock.
+   *
+   * Dedicated field (not derived from points[0]) because the Start
+   * Stitch is a third top-level entity alongside Segments and manual
+   * Stitches, has its own invariants, and is undeletable. `points[0]`
+   * is kept in sync as a synthetic mirror so existing segment-from
+   * references continue to work.
+   *
+   * Optional so projects predating this field default to {x: 0}.
+   */
+  startStitch?: { x: number };
   bg: BgImage | null;
   /**
    * Per-record stitch length strategy.

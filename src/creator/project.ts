@@ -16,6 +16,7 @@ export {
   chainEndPointId,
   hasSatin,
   newProject,
+  startStitchOf,
   startXMmOf,
 } from './projectFactory.js';
 export type { NewProjectOptions } from './projectFactory.js';

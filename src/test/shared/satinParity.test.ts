@@ -71,7 +71,9 @@ describe('satin geometry parity (Slice 11)', () => {
     const expected = satinStitches(spineToEdges(spec), spec.density);
 
     const seq = encodeSegments(project.points, project.segments, foot('B'));
-    const satinSt = seq.filter((s) => s.kind !== 'start');
+    // Drop the 'start' marker AND the leading Start Stitch (sourceIndex=-1
+    // needle at (0, 0)) so we compare against the satin geometry only.
+    const satinSt = seq.filter((s) => s.kind !== 'start' && s.sourceIndex !== -1);
     expect(satinSt.length).toBe(expected.length + 1);
     expect(satinSt[0]!.x).toBeCloseTo(expected[0]!.start.x, 6);
     expect(satinSt[0]!.y).toBeCloseTo(expected[0]!.start.y, 6);

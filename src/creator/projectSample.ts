@@ -18,7 +18,7 @@ export function SAMPLE(opts: IdGenOptions = {}): Project {
   // Layout fits inside the SH7_MAX_Y_MM (43.69 mm) hoop — every Y stays
   // within the file-format-supported range so the seed exports cleanly.
   const layout: Array<{ x: number; y: number; type: 'straight' | 'satin' | 'start' }> = [
-    { x: 0,   y: 2,    type: 'start' },
+    { x: 0,   y: 0,    type: 'start' },
     { x: -15, y: 6,    type: 'straight' },
     { x: 12,  y: 10,   type: 'straight' },
     { x: 12,  y: 18,   type: 'satin' },    // vertical satin run at X=12
