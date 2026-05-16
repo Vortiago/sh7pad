@@ -45,7 +45,7 @@ export function isStartLocked(project: Project): boolean {
  * New project swaps (`prev.id !== next.id`) and the freely-placeable
  * states (design mode, empty manual) pass through unchanged.
  */
-export function lockStartXMm(prev: Project | null, project: Project): Project {
+function lockStartXMm(prev: Project | null, project: Project): Project {
   if (!isStartLocked(project)) return project;
   if (!prev || prev.id !== project.id) return project;
   const prevStart = prev.startXMm ?? 0;

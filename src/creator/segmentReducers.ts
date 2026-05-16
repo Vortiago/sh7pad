@@ -223,7 +223,7 @@ export function movePointPreservingSatinSpines(
  * filling missing widthStart/widthEnd/density with their defaults; preserves
  * the `imported` flag on type swap so an imported segment stays flagged.
  */
-export function mergeSegmentPatch(seg: Segment, patch: Partial<Segment>): Segment {
+function mergeSegmentPatch(seg: Segment, patch: Partial<Segment>): Segment {
   const next = { ...seg, ...patch } as Segment;
   if (patch.type && patch.type !== seg.type) {
     if (patch.type === 'satin') {

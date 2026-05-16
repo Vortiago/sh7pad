@@ -24,14 +24,12 @@ export {
   isStartLocked,
   lockFirstPoint,
   lockProjectInvariants,
-  lockStartXMm,
 } from './projectInvariants.js';
 
 export { migrateProject } from './projectMigrate.js';
 
 export {
   addPointToProject,
-  mergeSegmentPatch,
   movePointPreservingSatinSpines,
   removePoint,
   removeSegment,

@@ -14,7 +14,7 @@ import type { ManualSatinSegment, Point, SatinSegment } from './types.js';
  * endpoint id can't be resolved against the project's points map (a
  * malformed segment — callers should skip it).
  */
-export function satinSpecFromSegment(
+function satinSpecFromSegment(
   seg: SatinSegment,
   pointById: ReadonlyMap<string, Point>,
 ): SatinSpec | null {
@@ -29,7 +29,7 @@ export function satinSpecFromSegment(
  * directly on the record (no project.points indirection), so this
  * always succeeds.
  */
-export function satinSpecFromManual(m: ManualSatinSegment): SatinSpec {
+function satinSpecFromManual(m: ManualSatinSegment): SatinSpec {
   return {
     from: { x: m.x, y: m.y },
     to: { x: m.toX, y: m.toY },

@@ -3,7 +3,6 @@ import {
   newProject,
   subdivideSegment,
   movePointPreservingSatinSpines,
-  mergeSegmentPatch,
   updateSegment,
   setProjectName,
   setThreadTension,
@@ -178,55 +177,71 @@ describe('movePointPreservingSatinSpines', () => {
   });
 });
 
-describe('mergeSegmentPatch (segment-level helper)', () => {
-  const straight: Segment = { id: 's', from: 'a', to: 'b', type: 'straight' };
-  const satin: Segment = {
-    id: 's', from: 'a', to: 'b', type: 'satin',
-    widthStart: 3, widthEnd: 5, density: 0.7,
-  };
+describe('updateSegment patch semantics', () => {
+  // These cover the segment-level merge rules (formerly tested directly
+  // against mergeSegmentPatch, now exercised through the public reducer).
+  const points: Project['points'] = [
+    { id: 'a', x: 0, y: 0 },
+    { id: 'b', x: 5, y: 5 },
+  ];
+  const straightProject = (imported = false): Project =>
+    projectWith(points, [
+      imported
+        ? { id: 's', from: 'a', to: 'b', type: 'straight', imported: true }
+        : { id: 's', from: 'a', to: 'b', type: 'straight' },
+    ]);
+  const satinProject = (): Project =>
+    projectWith(points, [{
+      id: 's', from: 'a', to: 'b', type: 'satin',
+      widthStart: 3, widthEnd: 5, density: 0.7,
+    }]);
 
   it('applies a no-op patch as identity-ish (same shape)', () => {
-    const out = mergeSegmentPatch(straight, {});
-    expect(out).toEqual(straight);
+    const p = straightProject();
+    const out = updateSegment(p, 's', {}, 1);
+    expect(out.segments[0]).toEqual(p.segments[0]);
   });
 
   it('merges scalar fields without changing type', () => {
-    const out = mergeSegmentPatch(satin, { widthStart: 9 });
-    expect(out.type).toBe('satin');
-    if (out.type === 'satin') expect(out.widthStart).toBe(9);
+    const out = updateSegment(satinProject(), 's', { widthStart: 9 } as Partial<Segment>, 1);
+    const seg = out.segments[0]!;
+    expect(seg.type).toBe('satin');
+    if (seg.type === 'satin') expect(seg.widthStart).toBe(9);
   });
 
   it('straight → satin fills missing widths and density with the project defaults', () => {
-    const out = mergeSegmentPatch(straight, { type: 'satin' } as Partial<Segment>);
-    expect(out.type).toBe('satin');
-    if (out.type === 'satin') {
-      expect(out.widthStart).toBe(DEFAULT_SATIN_WIDTH_MM);
-      expect(out.widthEnd).toBe(DEFAULT_SATIN_WIDTH_MM);
-      expect(out.density).toBe(DEFAULT_SATIN_DENSITY_MM);
+    const out = updateSegment(straightProject(), 's', { type: 'satin' } as Partial<Segment>, 1);
+    const seg = out.segments[0]!;
+    expect(seg.type).toBe('satin');
+    if (seg.type === 'satin') {
+      expect(seg.widthStart).toBe(DEFAULT_SATIN_WIDTH_MM);
+      expect(seg.widthEnd).toBe(DEFAULT_SATIN_WIDTH_MM);
+      expect(seg.density).toBe(DEFAULT_SATIN_DENSITY_MM);
     }
   });
 
   it('straight → satin uses caller-supplied widths when present', () => {
-    const out = mergeSegmentPatch(straight, {
+    const out = updateSegment(straightProject(), 's', {
       type: 'satin', widthStart: 1, widthEnd: 2, density: 0.4,
-    } as Partial<Segment>);
-    if (out.type === 'satin') {
-      expect(out.widthStart).toBe(1);
-      expect(out.widthEnd).toBe(2);
-      expect(out.density).toBe(0.4);
+    } as Partial<Segment>, 1);
+    const seg = out.segments[0]!;
+    if (seg.type === 'satin') {
+      expect(seg.widthStart).toBe(1);
+      expect(seg.widthEnd).toBe(2);
+      expect(seg.density).toBe(0.4);
     }
   });
 
   it('satin → straight drops the satin-only fields', () => {
-    const out = mergeSegmentPatch(satin, { type: 'straight' } as Partial<Segment>);
-    expect(out.type).toBe('straight');
-    expect((out as unknown as { widthStart?: number }).widthStart).toBeUndefined();
+    const out = updateSegment(satinProject(), 's', { type: 'straight' } as Partial<Segment>, 1);
+    const seg = out.segments[0]!;
+    expect(seg.type).toBe('straight');
+    expect((seg as unknown as { widthStart?: number }).widthStart).toBeUndefined();
   });
 
   it('preserves the imported flag across a type swap', () => {
-    const importedStraight: Segment = { ...straight, imported: true };
-    const out = mergeSegmentPatch(importedStraight, { type: 'satin' } as Partial<Segment>);
-    expect(out.imported).toBe(true);
+    const out = updateSegment(straightProject(true), 's', { type: 'satin' } as Partial<Segment>, 1);
+    expect(out.segments[0]!.imported).toBe(true);
   });
 });
 
