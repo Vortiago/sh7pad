@@ -1,6 +1,6 @@
 // Project → bytes pipeline. Drives the per-chunk encoders in sh7Codec.ts
 // to turn a Project into a complete .sh7 file. The byte primitives
-// themselves (encodeShortStitch, encodeChunk, encode06Block, etc.) live
+// themselves (encodeStitches, encodeChunk, encode06Block, etc.) live
 // in sh7Codec.ts — import from there directly when writing tests or
 // probes that build chunks by hand.
 
