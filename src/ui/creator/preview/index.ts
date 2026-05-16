@@ -130,11 +130,19 @@ export function attachPreviewPane(deps: PreviewPaneDeps): PreviewPaneHandle {
     }
   }
 
-  function scrubTo(step: number): void {
+  // Six of the transport callbacks (Reset, StepBack, StepForward, ToEnd,
+  // Scrub, plus the public scrubTo entry) share the same step-and-pause
+  // body: pause playback, advance to the target step, mirror it into
+  // uiStore. Only the target-step computation differs.
+  const stepToAndPause = (target: number): void => {
     if (!playback) return;
     playback.pause();
-    playback.stepTo(step);
-    uiStore.update({ playing: false, step });
+    playback.stepTo(target);
+    uiStore.update({ playing: false, step: target });
+  };
+
+  function scrubTo(step: number): void {
+    stepToAndPause(step);
   }
 
   const transportCallbacks = {
@@ -148,40 +156,16 @@ export function attachPreviewPane(deps: PreviewPaneDeps): PreviewPaneHandle {
       playback.pause();
       uiStore.update({ playing: false });
     },
-    onReset: () => {
-      if (!playback) return;
-      playback.pause();
-      playback.stepTo(0);
-      uiStore.update({ playing: false, step: 0 });
-    },
-    onStepBack: () => {
-      if (!playback) return;
-      playback.pause();
-      const next = Math.max(0, uiStore.getState().step - 1);
-      playback.stepTo(next);
-      uiStore.update({ playing: false, step: next });
-    },
+    onReset: () => stepToAndPause(0),
+    onStepBack: () => stepToAndPause(Math.max(0, uiStore.getState().step - 1)),
     onStepForward: () => {
-      if (!playback) return;
-      playback.pause();
-      const seq = sequenceFromProject(projectStore.getState());
-      const next = Math.min(seq.length, uiStore.getState().step + 1);
-      playback.stepTo(next);
-      uiStore.update({ playing: false, step: next });
+      const seqLen = sequenceFromProject(projectStore.getState()).length;
+      stepToAndPause(Math.min(seqLen, uiStore.getState().step + 1));
     },
     onToEnd: () => {
-      if (!playback) return;
-      playback.pause();
-      const seq = sequenceFromProject(projectStore.getState());
-      playback.stepTo(seq.length);
-      uiStore.update({ playing: false, step: seq.length });
+      stepToAndPause(sequenceFromProject(projectStore.getState()).length);
     },
-    onScrub: (step: number) => {
-      if (!playback) return;
-      playback.pause();
-      playback.stepTo(step);
-      uiStore.update({ playing: false, step });
-    },
+    onScrub: (step: number) => stepToAndPause(step),
     onSpeed: (speed: number) => {
       uiStore.update({ speed });
     },
