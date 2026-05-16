@@ -48,15 +48,7 @@ test('Edit a satin segment from the stitch list', async ({ page }) => {
 });
 
 test('Flip a straight segment to satin from the inspector', async ({ page }) => {
-  test.skip(
-    true,
-    'Inspector does not re-render slider DOM when seg.type changes in place. '
-      + 'patchInspectorValues (segmentInspector/index.ts ~line 162) only updates '
-      + 'existing labels, so the W START / W END rows that should appear after '
-      + 'straight→satin never get added. Verified manually: post-swap DOM is '
-      + 'byte-identical to pre-swap. Re-enable once the inspector rebuilds on '
-      + 'type change.',
-  );
+  await gotoApp(page);
 
   // Row 0 is #01 straight per FLOWS.md.
   const row = page.locator('li[data-row="0"]');
