@@ -14,7 +14,7 @@ import './stitchListPanel.css';
 import type { ManualStitchInput, Point, Project, SatinSegment, Segment } from '../../../creator/types.js';
 import { safeSequenceFromProject as sequenceFromProject } from '../../../creator/pipeline/encodeDesign.js';
 import { manualRowId } from '../rowIdMapping.js';
-import { tplFrom, slot } from '../dom.js';
+import { mmLabel, slot, tplFrom } from '../dom.js';
 import templateHtml from './stitchListPanel.html?raw';
 
 // 'start', a numeric string ('0', '1', …) for a design segment, or a
@@ -154,7 +154,7 @@ function segmentRow(
   } else {
     const len = Math.hypot(to.x - from.x, to.y - from.y);
     const suffix = stitchKindSuffix(stitchKinds);
-    slot(li, 'label').textContent = `#${num} straight  ${len.toFixed(1)}mm${suffix}`;
+    slot(li, 'label').textContent = `#${num} straight  ${mmLabel(len)}${suffix}`;
   }
   const del = slot<HTMLButtonElement>(li, 'delete');
   del.dataset['segId'] = seg.id;

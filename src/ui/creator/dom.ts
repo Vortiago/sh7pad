@@ -72,3 +72,14 @@ export function action<T extends HTMLElement = HTMLElement>(
   if (!node) throw new Error(`Missing [data-action="${name}"]`);
   return node;
 }
+
+/**
+ * Format a value in millimetres for display: one decimal place, no space
+ * before the unit (e.g. `10.0mm`). Use for inline length / width labels
+ * in the inspector and stitch-list rows. Coord-pair readouts have their
+ * own bespoke format strings (with directional arrows or surrounding
+ * parens) and are kept inline at the call site.
+ */
+export function mmLabel(value: number): string {
+  return `${value.toFixed(1)}mm`;
+}

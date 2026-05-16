@@ -34,7 +34,7 @@ import type {
 } from '../../../creator/types.js';
 import type { ManualSatinPatch } from '../../../creator/manualStitch.js';
 import { SATIN_WIDTH_MAX_MM, SATIN_WIDTH_MIN_MM } from '../../../creator/sh7Limits.js';
-import { tplFrom, slot } from '../dom.js';
+import { mmLabel, slot, tplFrom } from '../dom.js';
 import templateHtml from './segmentInspector.html?raw';
 import type { Selection } from '../store/uiStore.js';
 
@@ -167,7 +167,7 @@ function renderDesignSegment(
 
   const meta = clone(segMetaTpl);
   slot(meta, 'id').textContent = seg.id;
-  slot(meta, 'len').textContent = `${len.toFixed(1)}mm`;
+  slot(meta, 'len').textContent = mmLabel(len);
   const importedNote = slot(meta, 'imported');
   if (seg.imported) importedNote.hidden = false;
   else importedNote.remove();
@@ -225,7 +225,7 @@ function renderManualSatin(
 
   const meta = clone(manualMetaTpl);
   slot(meta, 'id').textContent = `#${target.idx + 1}`;
-  slot(meta, 'len').textContent = `${len.toFixed(1)}mm`;
+  slot(meta, 'len').textContent = mmLabel(len);
   root.appendChild(meta);
 
   appendSatinControls(root, entry, (patch) => onChange(target, patch));
@@ -282,7 +282,7 @@ function patchInspectorValues(
   sat: { widthStart: number; widthEnd: number } | ManualSatinSegment | SatinSegment | undefined,
 ): void {
   const lenSpan = root.querySelector<HTMLElement>('[data-value="len"]');
-  if (lenSpan) lenSpan.textContent = `${len.toFixed(1)}mm`;
+  if (lenSpan) lenSpan.textContent = mmLabel(len);
   if (!sat) return;
   patchSliderRow(root, 'widthStart', sat.widthStart);
   patchSliderRow(root, 'widthEnd', sat.widthEnd);
@@ -294,7 +294,7 @@ function patchSliderRow(root: HTMLElement, control: string, value: number): void
     input.value = String(value);
   }
   const valSpan = root.querySelector<HTMLElement>(`[data-value="${control}"]`);
-  if (valSpan) valSpan.textContent = `${value.toFixed(1)}mm`;
+  if (valSpan) valSpan.textContent = mmLabel(value);
 }
 
 function endAtSelector(
@@ -333,7 +333,7 @@ function buildSlider(
   input.addEventListener('input', () => onInput(Number(input.value)));
   const valSpan = slot(wrap, 'val');
   valSpan.dataset['value'] = control;
-  valSpan.textContent = `${Number(value).toFixed(1)}mm`;
+  valSpan.textContent = mmLabel(Number(value));
   return wrap;
 }
 
