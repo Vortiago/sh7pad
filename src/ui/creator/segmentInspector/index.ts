@@ -103,6 +103,7 @@ function rebuildRoot(
 ): void {
   root.replaceChildren();
   delete root.dataset['segmentId'];
+  delete root.dataset['segmentType'];
   delete root.dataset['pointId'];
   delete root.dataset['manualIdx'];
   root.dataset[kindSlot] = value;
@@ -157,13 +158,16 @@ function renderDesignSegment(
   const b = project.points.find((p) => p.id === seg.to);
   const len = a && b ? Math.hypot(b.x - a.x, b.y - a.y) : 0;
 
-  // Same id as last render: patch values, leave slider DOM alone so an
-  // in-flight drag gesture keeps its pointer-capture.
-  if (root.dataset['segmentId'] === seg.id) {
+  // Same id AND same type as last render: patch values, leave slider DOM
+  // alone so an in-flight drag gesture keeps its pointer-capture. A type
+  // flip (straight<->satin) changes the row set the template produces, so
+  // it must fall through to the full rebuild rather than patch in place.
+  if (root.dataset['segmentId'] === seg.id && root.dataset['segmentType'] === seg.type) {
     patchInspectorValues(root, len, seg.type === 'satin' ? seg : undefined);
     return;
   }
   rebuildRoot(root, 'segmentId', seg.id);
+  root.dataset['segmentType'] = seg.type;
 
   const meta = clone(segMetaTpl);
   slot(meta, 'id').textContent = seg.id;
@@ -269,6 +273,7 @@ function deleteButton(title: string, onClick: () => void): HTMLButtonElement {
 function clearInspector(root: HTMLElement): void {
   root.replaceChildren();
   delete root.dataset['segmentId'];
+  delete root.dataset['segmentType'];
   delete root.dataset['pointId'];
   delete root.dataset['manualIdx'];
 }

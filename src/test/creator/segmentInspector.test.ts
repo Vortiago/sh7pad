@@ -130,6 +130,37 @@ describe('renderSegmentInspector', () => {
     expect((after as HTMLInputElement).value).toBe('5.7');
   });
 
+  it('re-rendering the same segment after a TYPE flip rebuilds satin rows (W START / W END / END AT)', () => {
+    // Same-id fast path used to short-circuit on identity alone, so flipping a
+    // straight segment to satin in place left the inspector without the rows
+    // the satin shape requires. Detected via root.dataset['segmentType'] now;
+    // this test pins that flip actually materializes the rows.
+    const straight: Segment = { id: 's1', from: 'a', to: 'b', type: 'straight' };
+    const project = projectWith(straight);
+    const div = newDiv();
+    renderSegmentInspector(div, project, { kind: 'segment', id: 's1' }, noopCallbacks());
+    expect(div.querySelector('[data-control="widthStart"]')).toBeNull();
+    expect(div.querySelector('[data-control="widthEnd"]')).toBeNull();
+    expect(div.querySelector('[data-control="endAt"]')).toBeNull();
+
+    const flipped: Segment = {
+      id: 's1', from: 'a', to: 'b', type: 'satin',
+      widthStart: 2.4, widthEnd: 2.4, density: 0.6,
+    };
+    const updated: Project = { ...project, segments: [flipped] };
+    renderSegmentInspector(div, updated, { kind: 'segment', id: 's1' }, noopCallbacks());
+
+    expect(div.querySelector('[data-control="widthStart"]')).not.toBeNull();
+    expect(div.querySelector('[data-control="widthEnd"]')).not.toBeNull();
+    expect(div.querySelector('[data-control="endAt"]')).not.toBeNull();
+
+    // Flip back to straight: the rows must vanish again.
+    const back: Project = { ...project, segments: [straight] };
+    renderSegmentInspector(div, back, { kind: 'segment', id: 's1' }, noopCallbacks());
+    expect(div.querySelector('[data-control="widthStart"]')).toBeNull();
+    expect(div.querySelector('[data-control="endAt"]')).toBeNull();
+  });
+
   it('re-rendering for a different segment DOES replace the DOM (rebuild)', () => {
     const seg1: Segment = { id: 's1', from: 'a', to: 'b', type: 'satin', widthStart: 2.4, widthEnd: 2.4, density: 0.6 };
     const seg2: Segment = { id: 's2', from: 'a', to: 'b', type: 'satin', widthStart: 3.6, widthEnd: 3.6, density: 0.6 };
