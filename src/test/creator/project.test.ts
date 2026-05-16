@@ -161,12 +161,6 @@ describe('migrateProject', () => {
     }
   });
 
-  it('drops the legacy xLimit field on migrate (X-reach is derived from foot)', () => {
-    const proj = { ...newProject('X', { idGen: seq }), xLimit: 'foot7' } as unknown as Project;
-    const out = migrateProject(proj);
-    expect((out as unknown as { xLimit?: unknown }).xLimit).toBeUndefined();
-  });
-
   it('fills suggestedFoot and threadTension when missing', () => {
     const proj = { ...newProject('X', { idGen: seq }) } as Project;
     delete (proj as { suggestedFoot?: unknown }).suggestedFoot;
@@ -183,98 +177,6 @@ describe('migrateProject', () => {
     expect(twice).toEqual(once);
   });
 
-  it('converts old-format imported satins (from at TL corner, to at BR corner) into the detour chain', () => {
-    // Pre-fix sh7BinaryImport stored the satin\'s from at the binary cone\'s
-    // TL corner and to at BR — making the spine rendered as the TL→BR diagonal.
-    // The migration should add detour straights and reposition from/to onto
-    // the spine center so the rendered cone is axis-aligned.
-    const proj: Project = {
-      ...newProject('Stale', { idGen: seq }),
-      points: [
-        { id: 'p_tl', x: -1, y: 0 },         // chain enters at TL corner
-        { id: 'p_br', x: 1, y: 10 },          // chain exits at BR corner
-        { id: 'p_next', x: 5, y: 12 },
-      ],
-      segments: [
-        // Old-format satin: from=TL, to=BR. widthStart=2, widthEnd=2.
-        // |from.x - to.x| = 2 ≈ (widthStart + widthEnd)/2 = 2 → detected as old.
-        {
-          id: 's_old', from: 'p_tl', to: 'p_br',
-          type: 'satin', widthStart: 2, widthEnd: 2, density: 0.6,
-          imported: true,
-        },
-        { id: 's_after', from: 'p_br', to: 'p_next', type: 'straight', imported: true },
-      ],
-    };
-    const out = migrateProject(proj);
-    const satinSegs = out.segments.filter((s) => s.type === 'satin');
-    expect(satinSegs).toHaveLength(1);
-    const satin = satinSegs[0]!;
-    if (satin.type !== 'satin') throw new Error('expected satin');
-    const byId = new Map(out.points.map((p) => [p.id, p]));
-    const a = byId.get(satin.from)!;
-    const b = byId.get(satin.to)!;
-    // After migration: from/to should sit on the (vertical) spine.
-    expect(Math.abs(a.x - b.x)).toBeLessThan(0.01);
-    // Spine top y should match the original TL.y; spine bot y the original BR.y.
-    expect(a.y).toBeCloseTo(0, 6);
-    expect(b.y).toBeCloseTo(10, 6);
-    // Chain still passes through the original TL and BR corners via detour
-    // straights flanking the satin.
-    const idxSatin = out.segments.findIndex((s) => s.id === 's_old');
-    const detourIn = out.segments[idxSatin - 1]!;
-    const detourOut = out.segments[idxSatin + 1]!;
-    expect(detourIn.type).toBe('straight');
-    expect(detourIn.from).toBe('p_tl');
-    expect(detourIn.to).toBe(satin.from);
-    expect(detourOut.type).toBe('straight');
-    expect(detourOut.from).toBe(satin.to);
-    expect(detourOut.to).toBe('p_br');
-  });
-
-  it('leaves new-format imported satins (from/to on spine) unchanged', () => {
-    const proj: Project = {
-      ...newProject('Fresh', { idGen: seq }),
-      points: [
-        { id: 'p_tl', x: -1, y: 0 },
-        { id: 'p_top', x: 0, y: 0 },
-        { id: 'p_bot', x: 0, y: 10 },
-        { id: 'p_br', x: 1, y: 10 },
-      ],
-      segments: [
-        { id: 's_in', from: 'p_tl', to: 'p_top', type: 'straight', imported: true },
-        {
-          id: 's_satin', from: 'p_top', to: 'p_bot',
-          type: 'satin', widthStart: 2, widthEnd: 2, density: 0.6,
-          imported: true,
-        },
-        { id: 's_out', from: 'p_bot', to: 'p_br', type: 'straight', imported: true },
-      ],
-    };
-    const out = migrateProject(proj);
-    expect(out.segments).toHaveLength(3);
-    expect(out.segments[1]!.type).toBe('satin');
-    expect(out.segments[1]!.from).toBe('p_top');
-    expect(out.segments[1]!.to).toBe('p_bot');
-  });
-
-  it('leaves user-created (non-imported) satins unchanged', () => {
-    const proj: Project = {
-      ...newProject('User', { idGen: seq }),
-      points: [
-        { id: 'p_a', x: 0, y: 0 },
-        { id: 'p_b', x: 5, y: 10 }, // user clicked these, geometry isn't a corner
-      ],
-      segments: [
-        // No imported flag. User-created satin where from/to span any X.
-        { id: 's_user', from: 'p_a', to: 'p_b', type: 'satin', widthStart: 2, widthEnd: 2, density: 0.6 },
-      ],
-    };
-    const out = migrateProject(proj);
-    expect(out.segments).toHaveLength(1);
-    expect(out.segments[0]!.from).toBe('p_a');
-    expect(out.segments[0]!.to).toBe('p_b');
-  });
 });
 
 describe('chainEndPointId', () => {

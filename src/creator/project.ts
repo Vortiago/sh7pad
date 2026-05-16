@@ -20,7 +20,6 @@ import type {
 import type { FootId } from './foot.js';
 import { SH7_MAX_Y_MM, clampHoopH, clampStitchY } from './sh7Limits.js';
 import { DEFAULT_FOOT_ID } from './foot.js';
-import { newPointId, newSegmentId } from './ids.js';
 
 export const HOOP_HALF_W = 60;          // ±60 mm wide design area (120 mm total)
 export const HOOP_H = SH7_MAX_Y_MM;     // 0..43.69 mm — capped by the .sh7 file format
@@ -307,20 +306,11 @@ export function lockProjectInvariants(prev: Project | null, next: Project): Proj
  * Handles:
  *   - v1 hoop ({w, h}) → v2 hoop ({halfW, h}) + re-centering existing points
  *   - missing widthStart/widthEnd on satin segments
- *   - drop the legacy xLimit field (now derived from foot)
  *   - first-point-at-X=0 invariant
  * Idempotent: passing an already-migrated project returns an equivalent shape.
  */
 export function migrateProject(project: Project): Project {
   let p = project;
-
-  // Older projects stored an explicit xLimit. The current model derives
-  // the X reach from the foot, so the field has nothing to do — drop it
-  // if present so type-narrow consumers don't see a stale value.
-  if ('xLimit' in p) {
-    const { xLimit: _, ...rest } = p as Project & { xLimit?: unknown };
-    p = rest as Project;
-  }
 
   // Fill missing or unrecognized suggestedFoot; clamp tension.
   const rawFoot = p.suggestedFoot as unknown as string | undefined;
@@ -375,83 +365,9 @@ export function migrateProject(project: Project): Project {
   const segments: Segment[] = (p.segments ?? []).map((s) => migrateSegment(s));
   p = { ...p, segments };
 
-  // Convert old-format imported satins (from at TL, to at BR — pre-detour-chain
-  // import) into the new detour-chain layout so they render axis-aligned.
-  p = migrateOldFormatSatins(p);
-
   // Always finish with the first-point-at-X=0 lock.
   p = lockFirstPoint(p);
   return p;
-}
-
-/**
- * Pre-fix sh7BinaryImport stored each binary satin as a SatinSegment whose
- * `from` pointed at the cone's TL corner and `to` at the BR corner. The
- * creator's renderers treat from/to as spine endpoints and applied perp
- * offsets off the TL→BR diagonal, tilting every imported cone. The new
- * importer instead places from/to on the spine center and sandwiches each
- * satin between two imported detour straights (TL → spineTop, spineBot → BR).
- *
- * This migration detects the old format on a per-satin basis and rewrites
- * each one into the new layout. Detection: an imported satin whose from/to
- * x-coordinates differ by ~half their combined width (the signature of a
- * TL→BR diagonal). User-created (non-imported) satins are never touched —
- * those use the spine convention by design.
- */
-function migrateOldFormatSatins(p: Project): Project {
-  const points: Point[] = p.points.slice();
-  const segments: Segment[] = [];
-  for (const seg of p.segments) {
-    if (!isOldFormatSatin(seg, points)) {
-      segments.push(seg);
-      continue;
-    }
-    const tl = points.find((pt) => pt.id === seg.from);
-    const br = points.find((pt) => pt.id === seg.to);
-    if (!tl || !br) {
-      segments.push(seg);
-      continue;
-    }
-    // For an axis-aligned cone, TL = (spineTop.x - widthStart/2, spineTop.y)
-    // and BR = (spineBot.x + widthEnd/2, spineBot.y). Solve for spine.
-    const spineTopX = tl.x + seg.widthStart / 2;
-    const spineBotX = br.x - seg.widthEnd / 2;
-    const spineTopId = newPointId();
-    const spineBotId = newPointId();
-    points.push({ id: spineTopId, x: spineTopX, y: tl.y });
-    points.push({ id: spineBotId, x: spineBotX, y: br.y });
-    segments.push(
-      { id: newSegmentId(), from: tl.id, to: spineTopId, type: 'straight', imported: true },
-      {
-        id: seg.id,
-        from: spineTopId,
-        to: spineBotId,
-        type: 'satin',
-        widthStart: seg.widthStart,
-        widthEnd: seg.widthEnd,
-        density: seg.density,
-        imported: true,
-      },
-      { id: newSegmentId(), from: spineBotId, to: br.id, type: 'straight', imported: true },
-    );
-  }
-  return { ...p, points, segments };
-}
-
-function isOldFormatSatin(
-  seg: Segment,
-  points: readonly Point[],
-): seg is SatinSegment {
-  if (seg.type !== 'satin' || !seg.imported) return false;
-  const a = points.find((p) => p.id === seg.from);
-  const b = points.find((p) => p.id === seg.to);
-  if (!a || !b) return false;
-  // Old format: |from.x - to.x| ≈ (widthStart + widthEnd)/2 (TL→BR diagonal).
-  // New format: |from.x - to.x| is essentially 0 (spine center to spine center).
-  // Threshold at 30% of the combined half-widths is a safe split.
-  const expectedDiagonalDx = (seg.widthStart + seg.widthEnd) / 2;
-  const dx = Math.abs(a.x - b.x);
-  return dx > expectedDiagonalDx * 0.3;
 }
 
 function migrateSegment(seg: Segment): Segment {
