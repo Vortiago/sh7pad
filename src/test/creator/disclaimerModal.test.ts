@@ -93,4 +93,11 @@ describe('disclaimerModal', () => {
     expect(link).not.toBeNull();
     expect(link?.href).toBe('https://github.com/Vortiago/sh7pad');
   });
+
+  it('includes a user-guide link alongside the source link', () => {
+    showDisclaimer();
+    const links = document.querySelectorAll<HTMLAnchorElement>('.info-body a');
+    const hrefs = Array.from(links).map((a) => a.href);
+    expect(hrefs).toContain('https://github.com/Vortiago/sh7pad/tree/main/docs/user-guides');
+  });
 });

@@ -20,12 +20,25 @@ const PARAGRAPHS: readonly string[] = [
   'Use at your own risk. Test on a small piece of fabric first. Keep backups of anything you care about.',
 ];
 const GITHUB_URL = 'https://github.com/Vortiago/sh7pad';
+const USER_GUIDE_URL = 'https://github.com/Vortiago/sh7pad/tree/main/docs/user-guides';
 
 const templates = tplFrom(templateHtml);
 const cardTpl = templates.content.querySelector<HTMLTemplateElement>('#disclaimer-card')!;
 const paragraphTpl = templates.content.querySelector<HTMLTemplateElement>('#disclaimer-paragraph')!;
 
 let activeClose: (() => void) | null = null;
+
+function buildLinkPara(label: string, url: string): HTMLParagraphElement {
+  const p = paragraphTpl.content.firstElementChild!.cloneNode(true) as HTMLParagraphElement;
+  p.append(label);
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.textContent = url.replace(/^https:\/\//, '');
+  p.appendChild(a);
+  return p;
+}
 
 export function hasSeenDisclaimer(storage: Storage): boolean {
   try {
@@ -64,15 +77,8 @@ export function showDisclaimer(storage?: Storage): void {
     p.textContent = text;
     body.appendChild(p);
   }
-  const linkPara = paragraphTpl.content.firstElementChild!.cloneNode(true) as HTMLParagraphElement;
-  linkPara.append('Source code: ');
-  const a = document.createElement('a');
-  a.href = GITHUB_URL;
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
-  a.textContent = GITHUB_URL.replace(/^https:\/\//, '');
-  linkPara.appendChild(a);
-  body.appendChild(linkPara);
+  body.appendChild(buildLinkPara('Source code: ', GITHUB_URL));
+  body.appendChild(buildLinkPara('User guide: ', USER_GUIDE_URL));
 
   const okBtn = action<HTMLButtonElement>(card, 'disclaimer-dismiss');
   okBtn.addEventListener('click', () => {
