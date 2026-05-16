@@ -28,8 +28,6 @@ export const TENSION_MIN = 2.0;
 export const TENSION_MAX = 7.0;
 export const TENSION_STEP = 0.1;
 
-export const defaultIdGen = (): string => Math.random().toString(36).slice(2, 9);
-
 export interface NewProjectOptions extends IdGenOptions {
   /** Authoring mode. Locked for the lifetime of the project. Default: 'design'. */
   mode?: ProjectMode;
@@ -38,7 +36,7 @@ export interface NewProjectOptions extends IdGenOptions {
 }
 
 export function newProject(name = 'Untitled', opts: NewProjectOptions = {}): Project {
-  const idGen = opts.idGen ?? defaultIdGen;
+  const idGen = opts.idGen ?? (() => Math.random().toString(36).slice(2, 9));
   const now = Date.now();
   return {
     id: `p_${idGen()}`,

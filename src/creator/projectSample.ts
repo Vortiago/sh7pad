@@ -4,7 +4,7 @@
 // bundles that don't reference SAMPLE can tree-shake it cleanly.
 
 import type { IdGenOptions, Point, Project, Segment } from './types.js';
-import { defaultIdGen, newProject } from './projectFactory.js';
+import { newProject } from './projectFactory.js';
 
 /**
  * Seed project — wavy straights with two vertical satin runs at varied X.
@@ -13,7 +13,7 @@ import { defaultIdGen, newProject } from './projectFactory.js';
  * have to detour through the centerline first.
  */
 export function SAMPLE(opts: IdGenOptions = {}): Project {
-  const idGen = opts.idGen ?? defaultIdGen;
+  const idGen = opts.idGen ?? (() => Math.random().toString(36).slice(2, 9));
   const proj = newProject('Wave sample', { idGen });
   // Layout fits inside the SH7_MAX_Y_MM (43.69 mm) hoop — every Y stays
   // within the file-format-supported range so the seed exports cleanly.
