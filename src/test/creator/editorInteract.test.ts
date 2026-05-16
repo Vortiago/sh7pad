@@ -7,6 +7,10 @@ import {
   liveBoundsForClick,
   type Tool,
 } from '../../ui/creator/editor/interact.js';
+import {
+  isInsideBounds,
+  liveWindowGeometry,
+} from '../../ui/creator/editor/interactMath.js';
 import type { View } from '../../ui/creator/editor/view.js';
 import { newProject } from '../../creator/project.js';
 import type { Project } from '../../creator/types.js';
@@ -633,5 +637,55 @@ describe('liveBoundsForClick — manual mode Y cap', () => {
     const b = liveBoundsForClick(project, 'needle');
     expect(b.yMin).toBe(0);
     expect(b.yMax).toBe(project.hoop.h);
+  });
+});
+
+describe('liveWindowGeometry — overlay/click-gate contract', () => {
+  // Pins the renderer's overlay to the click-gate. If a click would
+  // pass liveBoundsForClick, the geometry helper that render.ts uses
+  // to draw the overlay must include that same point. This is the
+  // contract that keeps the rejected-affordance glyph and the
+  // highlighted band from disagreeing.
+
+  it('returns null in design mode (no overlay)', () => {
+    expect(liveWindowGeometry(newProject('D'), 'needle')).toBeNull();
+  });
+
+  it('returns null for non-needle/jump kinds (toolbar straight/satin)', () => {
+    const p = newProject('M', { mode: 'manual', suggestedFoot: 'S' });
+    expect(liveWindowGeometry(p, 'straight')).toBeNull();
+    expect(liveWindowGeometry(p, 'satin')).toBeNull();
+  });
+
+  it('agrees with liveBoundsForClick on xMin/xMax/yMin/yMax for needle in manual mode', () => {
+    const p = newProject('M', { mode: 'manual', suggestedFoot: 'S' });
+    const g = liveWindowGeometry(p, 'needle')!;
+    const b = liveBoundsForClick(p, 'needle');
+    expect(g.xMin).toBe(b.xMin);
+    expect(g.xMax).toBe(b.xMax);
+    expect(g.yMin).toBe(b.yMin);
+    expect(g.yMax).toBe(b.yMax);
+  });
+
+  it('agrees with liveBoundsForClick for jump kind too', () => {
+    const p = newProject('M', { mode: 'manual', suggestedFoot: 'S' });
+    const g = liveWindowGeometry(p, 'jump')!;
+    const b = liveBoundsForClick(p, 'jump');
+    expect(g.xMin).toBe(b.xMin);
+    expect(g.xMax).toBe(b.xMax);
+    expect(g.yMin).toBe(b.yMin);
+    expect(g.yMax).toBe(b.yMax);
+  });
+
+  it('any accepted click lies inside the geometry returned to the renderer', () => {
+    // Foot S manual project: needle window is [-3, 3], Y window is
+    // [needleY - 4, needleY + 4]. A click at (2, 1) passes the gate,
+    // so the overlay must include it.
+    const p = newProject('M', { mode: 'manual', suggestedFoot: 'S' });
+    const b = liveBoundsForClick(p, 'needle');
+    const accepted = { x: 2, y: 1 };
+    expect(isInsideBounds(b, accepted)).toBe(true);
+    const g = liveWindowGeometry(p, 'needle')!;
+    expect(isInsideBounds(g, accepted)).toBe(true);
   });
 });

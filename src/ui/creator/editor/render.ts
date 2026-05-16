@@ -18,19 +18,18 @@
 import './render.css';
 import { svgEl } from '../../svgDom.js';
 import { foot } from '../../../creator/foot.js';
-import { PER_RECORD_JUMP_CAP_MM, STITCH_DY_MAX_MM } from '../../../creator/sh7Limits.js';
 import { chainEndPointId, isStartLocked, startXMmOf } from '../../../creator/project.js';
 import { footWidthMmForFoot } from '../preview/constants.js';
 import {
   FOOT_BODY_HEIGHT_MM,
   FOOT_SLOT_HEIGHT_MM,
 } from '../preview/scene.js';
-import { currentManualFrame } from '../../../creator/manualStitch.js';
 import type { Point, Project } from '../../../creator/types.js';
 import type { StitchSequence } from '../../../creator/pipeline/stitch.js';
 import type { Selection } from '../store/uiStore.js';
 import type { View } from './view.js';
 import { renderGrid } from './grid.js';
+import { liveWindowGeometry } from './interactMath.js';
 import {
   renderHover,
   renderManualThread,
@@ -135,29 +134,23 @@ export function renderEditorScene(
   // tool is active. Tells the user where the next click can actually
   // land. The band slides as the carriage moves (Foot S jumps) and
   // tightens to the ±1 mm jump envelope when the Jump tool is selected.
-  // Y is clipped to ±STITCH_DY_MAX_MM around the current needle Y so the
-  // band reflects the per-record firmware envelope on both axes.
-  if (
-    project.mode === 'manual' &&
-    interaction?.tool === 'add' &&
-    (interaction.activeStitch === 'needle' || interaction.activeStitch === 'jump')
-  ) {
-    const frame = currentManualFrame(project);
-    const half =
-      interaction.activeStitch === 'jump' ? PER_RECORD_JUMP_CAP_MM : f.needleSlotHalfMm;
-    const center = interaction.activeStitch === 'jump' ? frame.needleXMm : frame.carriageXMm;
-    // Clip to the hoop halfW / hoop H so the band doesn't extend off the fabric.
-    const xMin = Math.max(-touchableHalfW, center - half);
-    const xMax = Math.min(touchableHalfW, center + half);
-    const yMin = Math.max(0, frame.needleYMm - STITCH_DY_MAX_MM);
-    const yMax = Math.min(H, frame.needleYMm + STITCH_DY_MAX_MM);
-    if (xMax > xMin && yMax > yMin) {
-      svg.appendChild(svgEl('rect', {
-        x: offsetX + xMin * zoom,
-        y: offsetY + yMin * zoom,
-        width: (xMax - xMin) * zoom,
-        height: (yMax - yMin) * zoom,
-      }, ['ed-needle-window', `kind-${interaction.activeStitch}`]));
+  // The geometry is computed in interactMath.liveWindowGeometry so the
+  // click gate (interact.ts) and this overlay cannot drift.
+  if (interaction?.tool === 'add') {
+    const geom = liveWindowGeometry(project, interaction.activeStitch);
+    if (geom) {
+      // Re-clip X to the touchable fabric (narrower than hoop halfW when
+      // carriageReach < halfW) so the band never extends off the fabric.
+      const xMin = Math.max(-touchableHalfW, geom.xMin);
+      const xMax = Math.min(touchableHalfW, geom.xMax);
+      if (xMax > xMin && geom.yMax > geom.yMin) {
+        svg.appendChild(svgEl('rect', {
+          x: offsetX + xMin * zoom,
+          y: offsetY + geom.yMin * zoom,
+          width: (xMax - xMin) * zoom,
+          height: (geom.yMax - geom.yMin) * zoom,
+        }, ['ed-needle-window', `kind-${interaction.activeStitch}`]));
+      }
     }
   }
 

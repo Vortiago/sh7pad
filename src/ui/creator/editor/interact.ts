@@ -21,6 +21,7 @@ import {
   clampToHoopAndLimit,
   determineActionFromPointer,
   hoopFromClient,
+  isInsideBounds,
   liveBoundsForClick,
   type HoopPoint,
   type Tool,
@@ -171,7 +172,7 @@ export function createEditorInteract(
         // pre-check missed (e.g. carriage drift on Foot B), and the hover
         // affordance already telegraphed invalidity before this click.
         const b = liveBoundsForClick(project, activeStitch);
-        if (raw.x < b.xMin || raw.x > b.xMax || raw.y < b.yMin || raw.y > b.yMax) return;
+        if (!isInsideBounds(b, raw)) return;
         cb.onAddPoint({ x: raw.x, y: raw.y }, activeStitch);
         return;
       }
@@ -263,10 +264,8 @@ export function createEditorInteract(
         return;
       }
       const b = liveBoundsForClick(project, activeStitch);
-      const valid =
-        raw.x >= b.xMin && raw.x <= b.xMax && raw.y >= b.yMin && raw.y <= b.yMax;
       cb.onHover({ x: raw.x, y: raw.y });
-      cb.onHoverValidity?.(valid);
+      cb.onHoverValidity?.(isInsideBounds(b, raw));
       return;
     }
 
