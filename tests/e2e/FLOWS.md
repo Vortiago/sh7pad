@@ -222,3 +222,95 @@ The seeded "Wave sample" project has 9 points, 8 segments (two of them satin), 1
 **Verifies:** Two-way binding of the paired controls, persistence round-trip, value clamps inside `TENSION_MIN..TENSION_MAX`.
 **Screenshots needed (for doc-writer):**
 - Stitch Settings panel with the tension range at 6.
+
+## Start Stitch + Carriage Start flows
+
+These flows exercise the two-handle authoring model introduced in `docs/adr/0001-start-stitch-and-carriage-start.md`. Every Design or Manual project starts with a **Start Stitch** (green diamond, encoded as the first machine record) sitting inside the **Needle Slot** of the **Foot Frame** at the **Carriage Start** position. The Carriage Start is rendered as the dashed presser-foot icon. Both handles live on the editor canvas at `#ed-canvas`.
+
+Selectors stable for this feature, already present in the renderer:
+
+- `[data-role="start-marker"]` is the foot icon (Carriage Start handle). Its child `.ed-start-body` is the outer Foot Frame outline, `.ed-start-slot` is the Needle Slot rectangle inside it.
+- `[data-role="start-stitch"]` is the Start Stitch handle. Its `polygon.ed-start-stitch-glyph` is the visible green diamond; the larger transparent `rect.ed-start-stitch-hit` covers the Needle Slot region as the touch-friendly hit target.
+- Both groups carry `data-locked="true|false"` and toggle a `*-locked` CSS class to drive the cursor (`not-allowed`) and the fill opacity in Manual Mode after the **Start Lock** engages.
+- Both groups own an SVG `<title>` child that supplies the native hover tooltip and the screen-reader accessible name. Tooltip text reflects the current X in mm and switches copy when the handle is locked.
+- The store is exposed on `globalThis.__sh7pad_store` for tests that prefer to mutate state directly over pointer math (see `tests/e2e/startStitch.spec.ts`).
+
+## Flow: Slide the Carriage Start, watch the Start Stitch drag along
+
+**Where:** Fresh editor, Wave sample on Foot S (Carriage Reach 27.25 mm), Edit mode.
+**Goal:** Confirm the foot icon and the Start Stitch follow each other when the user drags the foot, preserving the Needle-Slot-relative offset.
+**Steps:**
+1. Read the initial Carriage Start and Start Stitch via `globalThis.__sh7pad_store.getState().startXMm` and `.startStitch.x` -> both report 0.
+2. Locate `[data-role="start-marker"] .ed-start-body` and grab its bounding box; the click target must land on the Foot Frame *outside* the inner Needle Slot so the gesture routes to the carriage handle (interact.ts:113 checks `start-stitch` first; the Foot Frame body sits below the diamond's hit rect in pointer-events terms).
+3. `page.mouse.down()` on the Foot Frame body, drag right by ~70px (well within Foot S reach), `page.mouse.up()`.
+4. Re-read the store -> `startXMm` is positive and `startStitch.x` matches it within the floating-point tolerance: the offset (here 0) was preserved.
+5. Inspect `[data-role="start-marker"]` and `[data-role="start-stitch"]` transforms -> both `translate(x y)` X values are equal.
+**Verifies:** `clampStartStateToEye` drag-along on same-project carriage moves, Foot-Frame-body region routes to the Carriage handle, the diamond rides the foot without leaving the Needle Slot.
+**Screenshots needed (for doc-writer):**
+- Editor with the foot icon shifted ~5 mm right of origin, diamond centred inside the Needle Slot.
+
+## Flow: Push the Carriage Start beyond Carriage Reach (clamped, Start Stitch follows)
+
+**Where:** Fresh editor, Wave sample on Foot S (reach 27.25 mm), Edit mode.
+**Goal:** Confirm the foot stops at the Carriage Reach limit and the Start Stitch is pulled along to the same position.
+**Steps:**
+1. Mutate the store: `setState((p) => ({ ...p, startXMm: 50, updatedAt: Date.now() }))` (or drag the Foot Frame body far enough right that it would otherwise pass the reach limit).
+2. Re-read state -> `startXMm` is clamped to +27.25 and `startStitch.x` equals +27.25 (drag-along preserved the offset of 0).
+3. Repeat with -50 -> both clamp to -27.25.
+**Verifies:** Reach invariant `|carriageStart.x| <= carriageReachHalfMm` enforced inside `clampStartStateToEye`, Start Stitch follows even when the carriage hits the reach edge.
+**Screenshots needed (for doc-writer):**
+- Editor with the foot icon at the right edge of the hoop, Needle Slot still containing the diamond.
+
+## Flow: Slide the Start Stitch, hard-stopped at the Needle Slot edge
+
+**Where:** Fresh editor, Wave sample, Carriage Start at 0, Edit mode.
+**Goal:** Confirm the diamond cannot leave the Needle Slot, and the carriage does not move when only the diamond is dragged.
+**Steps:**
+1. Locate `[data-role="start-stitch"] .ed-start-stitch-hit` (the transparent touch target spanning the Needle Slot). Its bounding box matches the `.ed-start-slot` rect.
+2. Drag from the slot centre rightward past the right Needle Slot edge by ~200 px (well past 3.5 mm of design space).
+3. Read the store -> `startXMm` is unchanged at 0; `startStitch.x` is clamped to +3.5 (the `needleSlotHalfMm`).
+4. Repeat dragging leftward past the left Needle Slot edge -> `startStitch.x` is clamped to -3.5; carriage still 0.
+5. With Carriage Start moved to +5 (via the previous flow), drag the diamond far left -> `startStitch.x` clamps to 1.5 (`carriageStart - needleSlotHalfMm`), proving the constraint is relative to the Carriage Start, not the hoop origin.
+**Verifies:** `clampStartStateToEye` hard-stop on same-project Start Stitch moves, Needle Slot invariant `|startStitch.x - carriageStart.x| <= needleSlotHalfMm`, Needle-Slot-region routing to the Start Stitch handle.
+**Screenshots needed (for doc-writer):**
+- Editor close-up of the Foot Frame with the green diamond pressed against the right edge of the Needle Slot.
+
+## Flow: Pointer routing splits Needle Slot from Foot Frame body
+
+**Where:** Fresh editor, Wave sample, Edit mode.
+**Goal:** Confirm a click inside the Needle Slot drags the Start Stitch, while a click on the Foot Frame body outside it drags the Carriage Start.
+**Steps:**
+1. Find the Foot Frame body rect (`[data-role="start-marker"] .ed-start-body`) and the Needle Slot rect (`.ed-start-slot`). Compute one point inside the Needle Slot (its centre) and one point on the Foot Frame body well outside the Needle Slot (e.g. the left edge of `.ed-start-body`).
+2. Use `document.elementFromPoint(slotX, slotY)` from a `page.evaluate` -> the returned element's closest ancestor is `[data-role="start-stitch"]` (the transparent `.ed-start-stitch-hit` is appended after the Foot Frame group, so it wins inside the Needle Slot in DOM order).
+3. Do the same for the Foot Frame body point -> closest ancestor is `[data-role="start-marker"]`.
+4. Optional follow-up: drag from each point and verify `__sh7pad_store` mutates the expected field only.
+**Verifies:** Pointer-event ordering (Start Stitch group appended after the Start Marker group in `render.ts`, so the diamond's hit rect wins inside the Needle Slot), interact.ts's explicit `start-stitch` first check on `pointerdown`.
+**Screenshots needed (for doc-writer):**
+- Annotated screenshot labelling the two handle regions (outer Foot Frame versus inner Needle Slot with diamond).
+
+## Flow: Manual Mode locks both handles after the first user Stitch
+
+**Where:** New Manual-mode project on Foot B, no user Stitches yet.
+**Goal:** Confirm the Start Lock engages on first user Stitch, freezes Carriage Start and Start Stitch, and updates the affordances accordingly.
+**Steps:**
+1. Click `button[data-action="new"]`, pick `label[data-option="manual"]` and `label[data-option="B"]`, click `button[data-action="np-create"]`.
+2. Before placing a Stitch, read `[data-role="start-marker"]` and `[data-role="start-stitch"]` attributes -> both `data-locked="false"`, no `-locked` class, tooltips end with "Drag to...".
+3. Mutate `startXMm` to 2 via the store, confirm `startStitch.x` rode along to 2, then place one needle Stitch with `manualStitches: [{ kind: 'needle', x: 3, y: 2, dxRaw: 8, dyRaw: 24 }]` and `lockStartXMm: true`.
+4. Re-read attributes -> both `data-locked="true"`, both groups carry their `*-locked` class (`ed-start-marker-locked`, `ed-start-stitch-locked`), both `<title>` strings now contain "Locked".
+5. Attempt a pointer drag on either handle -> position does not change (the `data-locked="true"` attribute aborts the drag in `interact.ts:114-119` / `interact.ts:128-133`).
+**Verifies:** Start Lock semantics in Manual Mode, locked CSS class application, locked tooltip copy on both `<title>` children, drag short-circuit on `data-locked="true"`.
+**Screenshots needed (for doc-writer):**
+- Manual Mode editor after first stitch placed, foot icon dimmed and `not-allowed` cursor visible on hover.
+
+## Flow: Exported file encodes Start Stitch as the leading machine record
+
+**Where:** Edit mode, fresh Design project, Carriage Start at 0, Start Stitch at +2 mm.
+**Goal:** Confirm a non-zero Start Stitch X surfaces as a leading needle record with `dx = startStitch.x * 8` and `dy = 0`.
+**Steps:**
+1. Set `startStitch.x = 2` in the store, leave Carriage Start at 0.
+2. Add one Segment from the chain-end Point to (5, 5) so the encoder has geometry to emit.
+3. Open the Export dialog and click `button[data-action="export-sh7"]`, capture the download.
+4. Read the bytes, find the `02 01 01` stitch chunk, skip its 4-byte BE32 payload length, read the first two bytes as signed int8 each -> `dx = 16`, `dy = 0`.
+**Verifies:** `prependStartFrames` emits the leading needle record from `startStitch.x` in the singleton encoder, byte-level round-trip of the Start Stitch position.
+**Screenshots needed (for doc-writer):**
+- None (byte-level assertion, already covered by `startStitch.spec.ts` but kept here so future doc updates can reference the leading-record contract).
