@@ -19,7 +19,7 @@ import './render.css';
 import { svgEl } from '../../svgDom.js';
 import { foot } from '../../../creator/foot.js';
 import { PER_RECORD_JUMP_CAP_MM, STITCH_DY_MAX_MM } from '../../../creator/sh7Limits.js';
-import { chainEndPointId, isStartLocked, startXMmOf } from '../../../creator/project.js';
+import { chainEndPointId, isStartLocked, startStitchOf, startXMmOf } from '../../../creator/project.js';
 import { footWidthMmForFoot } from '../preview/constants.js';
 import {
   FOOT_BODY_HEIGHT_MM,
@@ -277,6 +277,42 @@ export function renderEditorScene(
     rx: Math.min(1.5, slotW / 8),
   }, ['ed-start-slot']));
   svg.appendChild(startG);
+
+  // **Start Stitch** glyph — a distinct green-filled diamond marking
+  // the first needle drop. Drawn at design coord (startStitch.x, 0).
+  // Tagged data-role="start-stitch" so editor/interact.ts can route
+  // drags to onMoveStartStitch (hard-stopped at the Eye edge). The
+  // diamond is purely visual — the actual hit target is the
+  // surrounding Needle Slot rect (see startG above), which gets
+  // re-tagged below to swallow slot-region clicks into the Start
+  // Stitch drag.
+  const startStitch = startStitchOf(project);
+  const startStitchPx = px(startStitch.x, chainAnchorY);
+  const stitchG = svgEl('g', {
+    'data-role': 'start-stitch',
+    'data-locked': startLocked ? 'true' : 'false',
+    transform: `translate(${startStitchPx.x} ${startStitchPx.y})`,
+  }, ['ed-start-stitch', ...(startLocked ? ['ed-start-stitch-locked'] : [])]);
+  const stitchTooltip = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+  stitchTooltip.textContent = startLocked
+    ? `Start Stitch: X = ${startStitch.x.toFixed(2)} mm. Locked — manual-mode designs freeze the Start Stitch once the first stitch is placed.`
+    : `Start Stitch: X = ${startStitch.x.toFixed(2)} mm. Drag to slide the first needle drop within the Needle Slot.`;
+  stitchG.appendChild(stitchTooltip);
+  const stitchSize = Math.max(4, Math.min(8, zoom * 1.2));
+  stitchG.appendChild(svgEl('polygon', {
+    points: `0,${-stitchSize} ${stitchSize},0 0,${stitchSize} ${-stitchSize},0`,
+  }, ['ed-start-stitch-glyph']));
+  // Invisible hit target spanning the foot's slot region around the
+  // Start Stitch — keeps the drag affordance touch-friendly even at
+  // low zoom where the diamond would be only a few pixels wide.
+  stitchG.appendChild(svgEl('rect', {
+    x: (startPx.x - startStitchPx.x) - slotW / 2,
+    y: (startPx.y - startStitchPx.y) - slotH / 2,
+    width: slotW,
+    height: slotH,
+    fill: 'transparent',
+  }, ['ed-start-stitch-hit']));
+  svg.appendChild(stitchG);
 
   // 6. Hover crosshair + target dot.
   if (hoverHoop) {

@@ -18,7 +18,7 @@
 // are private to this module.
 
 import { foot } from './foot.js';
-import { hasSatin, startXMmOf } from './project.js';
+import { hasSatin, startStitchOf, startXMmOf } from './project.js';
 import { spineToEdges, type ConeEdges } from '../shared/satinShape.js';
 import {
   emitDesignMultiBlock,
@@ -72,12 +72,15 @@ export function projectSequence(project: Project): StitchSequence {
   const projectFoot = foot(project.suggestedFoot);
   const planOpts = planOptsFor(project);
   const startX = startXMmOf(project);
+  const startStitchX = startStitchOf(project).x;
   if (project.mode === 'manual') {
     return hasSatin(project)
-      ? emitManualMultiBlock(project, projectFoot, planOpts, startX).sequence
-      : manualSequence(project, startX);
+      ? emitManualMultiBlock(project, projectFoot, planOpts, startX, startStitchX).sequence
+      : manualSequence(project, startX, startStitchX);
   }
-  return encodeSegments(project.points, project.segments, projectFoot, planOpts, startX);
+  return encodeSegments(
+    project.points, project.segments, projectFoot, planOpts, startX, startStitchX,
+  );
 }
 
 /**
@@ -106,24 +109,27 @@ export function projectDraft(project: Project): DesignDraft {
 // stitch is shallow-copied so callers can't mutate project state through
 // the returned sequence.
 
-function manualSequence(project: Project, startXMm: number): StitchSequence {
-  const startPt = project.points[0] ?? { x: 0, y: 0 };
-  const stitches: Stitch[] = [
-    { kind: 'start', x: startPt.x, y: startPt.y, sourceIndex: -1, carriageXMm: startXMm },
-  ];
-  // Satin-free manual mode: each stitch was slot-validated when placed,
-  // so the firmware's carriage follows the simple rule — jumps slide
-  // the carriage by dxHi (or dxRaw / X_UNITS_PER_MM for encoder-emitted
-  // jumps that don't carry dxHi), needles plant. Fold that running
-  // carriage onto each emitted Stitch directly.
+function manualSequence(project: Project, startXMm: number, startStitchXMm: number): StitchSequence {
+  // Empty manual projects yield just the 'start' marker — the canonical
+  // "nothing to render" shape, matching design-mode encodeSegments.
+  // Non-empty projects lead with the 'start' + **Start Stitch** needle,
+  // then the user's manual stitches.
+  const userStitches: Stitch[] = [];
   let carriage = startXMm;
   for (const m of project.manualStitches) {
     if (m.kind === 'satin') continue;
-    // m is now narrowed to ManualNeedleStitch | ManualJumpStitch.
     if (m.kind === 'jump') carriage += jumpCarriageDxMm(m);
-    stitches.push(stitchFromManual(m, carriage));
+    userStitches.push(stitchFromManual(m, carriage));
   }
-  return stitches;
+  if (userStitches.length === 0) {
+    return [{ kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: startXMm }];
+  }
+  const dxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
+  return [
+    { kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: startXMm },
+    { kind: 'needle', x: startStitchXMm, y: 0, dxRaw, dyRaw: 0, sourceIndex: -1, carriageXMm: startXMm },
+    ...userStitches,
+  ];
 }
 
 /**
@@ -254,7 +260,10 @@ function segmentSatinSource(project: Project): SatinSource {
   return {
     coneEdges: () => edges,
     emitBlocks: (f, planOpts) =>
-      emitDesignMultiBlock(project.points, project.segments, f, planOpts, startXMmOf(project)).blocks,
+      emitDesignMultiBlock(
+        project.points, project.segments, f, planOpts,
+        startXMmOf(project), startStitchOf(project).x,
+      ).blocks,
   };
 }
 
@@ -271,7 +280,8 @@ function manualSatinSource(project: Project): SatinSource {
   }
   return {
     coneEdges: () => edges,
-    emitBlocks: (f, planOpts) => emitManualMultiBlock(project, f, planOpts, startXMmOf(project)).blocks,
+    emitBlocks: (f, planOpts) =>
+      emitManualMultiBlock(project, f, planOpts, startXMmOf(project), startStitchOf(project).x).blocks,
   };
 }
 

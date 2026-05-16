@@ -145,12 +145,10 @@ describe('renderPreviewScene', () => {
     expect(wBody).toBeGreaterThan(wSlot);
 
     const b = newSvg();
-    // Step 1 = after Phase-A short. The remaining record count is one
-    // jump per millimetre of Phase B walk; ceil((12 − slotHalf) / 1) + 1
-    // = enough to reach the segment end. Stepping to 11 covers the
-    // longest plausible Phase B (slotHalf as small as 1 mm), so the
-    // body has finished walking by then.
-    renderPreviewScene(b, project, 11, CONTAINER, 1);
+    // Step counter: 1 = Start Stitch (no-op needle drop). 2 = Phase A.
+    // 3..N = Phase B walks. Stepping to 12 covers the full sequence
+    // (Start Stitch + Phase A + 9 walks ≈ 11 records + safety margin).
+    renderPreviewScene(b, project, 12, CONTAINER, 1);
     const xB = Number(
       b.querySelector<SVGRectElement>('g.presser-foot rect.foot-body')!.getAttribute('x'),
     );

@@ -321,6 +321,37 @@
   }
 }
 
+/* **Start Stitch** glyph — distinct green diamond drawn inside the
+ * foot's Needle Slot. Visually distinct from user Points (which are
+ * pale-fill discs) and from the foot icon (accent-colour outline), so
+ * the user reads it as "this is the first needle drop" without
+ * ambiguity. The transparent .ed-start-stitch-hit rect is a touch-
+ * friendly drag handle covering the whole slot region. */
+.ed-start-stitch {
+  cursor: grab;
+
+  & .ed-start-stitch-glyph {
+    fill: #2ecc71;
+    stroke: #000;
+    stroke-width: 1;
+    stroke-opacity: 0.85;
+    pointer-events: none;
+  }
+
+  & .ed-start-stitch-hit {
+    cursor: grab;
+  }
+
+  &:active { cursor: grabbing; }
+  &:active .ed-start-stitch-hit { cursor: grabbing; }
+
+  &.ed-start-stitch-locked {
+    cursor: not-allowed;
+    & .ed-start-stitch-hit { cursor: not-allowed; }
+    & .ed-start-stitch-glyph { fill-opacity: 0.4; }
+  }
+}
+
 /* Rejected-hover affordance (manual mode, hover outside the live window) */
 .ed-hover-reject-ring {
   fill: none;

@@ -33,28 +33,31 @@ function manualProjectS(stitches: { kind: 'needle' | 'jump'; x: number; y: numbe
 }
 
 describe('projectToDesignDraft — manual mode', () => {
-  it('a sequence of three in-window needles exports as three short records', () => {
+  it('a sequence of three in-window needles exports as four short records (Start Stitch + 3 user)', () => {
     const project = manualProjectS([
       { kind: 'needle', x: 1, y: 1 },
       { kind: 'needle', x: -1, y: 2 },
       { kind: 'needle', x: 2, y: 3 },
     ]);
     const draft = asSingleton(projectToDesignDraft(project));
-    expect(draft.stitches).toHaveLength(3);
+    expect(draft.stitches).toHaveLength(4);
     expect(draft.stitches.every((s) => s.kind === 'short')).toBe(true);
+    // Start Stitch is a (0, 0) no-op needle drop.
+    expect(draft.stitches[0]).toEqual({ kind: 'short', dxRaw: 0, dyRaw: 0 });
     // dxRaw = 8 / mm, dyRaw = 12 / mm.
-    expect(draft.stitches[0]).toEqual({ kind: 'short', dxRaw: 8, dyRaw: 12 });
-    expect(draft.stitches[1]).toEqual({ kind: 'short', dxRaw: -16, dyRaw: 12 });
-    expect(draft.stitches[2]).toEqual({ kind: 'short', dxRaw: 24, dyRaw: 12 });
+    expect(draft.stitches[1]).toEqual({ kind: 'short', dxRaw: 8, dyRaw: 12 });
+    expect(draft.stitches[2]).toEqual({ kind: 'short', dxRaw: -16, dyRaw: 12 });
+    expect(draft.stitches[3]).toEqual({ kind: 'short', dxRaw: 24, dyRaw: 12 });
   });
 
-  it('a 1 mm jump becomes a single jump record with dx=8', () => {
+  it('a 1 mm jump becomes a single jump record with dx=8 (after the leading Start Stitch)', () => {
     const project = manualProjectS([
       { kind: 'jump', x: 1, y: 0 },
     ]);
     const draft = asSingleton(projectToDesignDraft(project));
-    expect(draft.stitches).toHaveLength(1);
-    expect(draft.stitches[0]).toEqual({ kind: 'jump', dxRaw: 8, dyRaw: 0 });
+    expect(draft.stitches).toHaveLength(2);
+    expect(draft.stitches[0]).toEqual({ kind: 'short', dxRaw: 0, dyRaw: 0 }); // Start Stitch
+    expect(draft.stitches[1]).toEqual({ kind: 'jump', dxRaw: 8, dyRaw: 0 });
   });
 
   it('a manual draft exports + reparses back to the same step sequence', () => {
@@ -66,14 +69,16 @@ describe('projectToDesignDraft — manual mode', () => {
     const bytes = exportProjectBinary(project);
     const reparsed = parseFile(bytes);
     const steps = reparsed.elements[0]!.steps;
-    expect(steps).toHaveLength(3);
+    // Start Stitch (a no-op short) + 3 user records.
+    expect(steps).toHaveLength(4);
     expect(steps[0]?.kind).toBe('short');
-    expect(steps[1]?.kind).toBe('jump');
-    expect(steps[2]?.kind).toBe('short');
-    // Stitch deltas survive the round trip.
-    expect(steps[0]).toMatchObject({ dx: 8, dy: 12 });
-    expect(steps[1]).toMatchObject({ dx: 8, dy: 0 });
-    expect(steps[2]).toMatchObject({ dx: 16, dy: 12 });
+    expect(steps[0]).toMatchObject({ dx: 0, dy: 0 });
+    expect(steps[1]?.kind).toBe('short');
+    expect(steps[2]?.kind).toBe('jump');
+    expect(steps[3]?.kind).toBe('short');
+    expect(steps[1]).toMatchObject({ dx: 8, dy: 12 });
+    expect(steps[2]).toMatchObject({ dx: 8, dy: 0 });
+    expect(steps[3]).toMatchObject({ dx: 16, dy: 12 });
   });
 
   it('design dimensions are derived from the manual stitch bbox, not from points[]', () => {

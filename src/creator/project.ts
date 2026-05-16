@@ -19,7 +19,7 @@ import type {
 } from './types.js';
 import type { FootId } from './foot.js';
 import { SH7_MAX_Y_MM, clampHoopH, clampStitchY } from './sh7Limits.js';
-import { DEFAULT_FOOT_ID } from './foot.js';
+import { DEFAULT_FOOT_ID, NEEDLE_SLOT_HALF_MM, foot } from './foot.js';
 import { newPointId, newSegmentId } from './ids.js';
 
 export const HOOP_HALF_W = 60;          // ±60 mm wide design area (120 mm total)
@@ -61,17 +61,29 @@ export function newProject(name = 'Untitled', opts: NewProjectOptions = {}): Pro
     segments: [],
     manualStitches: [],
     startXMm: 0,
+    startStitch: { x: 0 },
     bg: null,
   };
 }
 
 /**
- * Resolved carriage-start X for a project. Falls back to 0 when the
+ * Resolved **Carriage Start** X for a project. Falls back to 0 when the
  * field is missing (projects predating startXMm). Centralised so every
  * pipeline / preview / encoder consumer reads the same default rule.
  */
 export function startXMmOf(project: Project): number {
   return project.startXMm ?? 0;
+}
+
+/**
+ * Resolved **Start Stitch** position for a project. Y is always 0. X
+ * defaults to the synthetic-mirror `points[0].x` (or 0) for projects
+ * predating the dedicated field. Centralised so every consumer reads
+ * the same default rule.
+ */
+export function startStitchOf(project: Project): { x: number; y: 0 } {
+  const x = project.startStitch?.x ?? project.points[0]?.x ?? 0;
+  return { x, y: 0 };
 }
 
 /**
@@ -220,11 +232,23 @@ export function removePoint(
   return removeSegment(project, incoming.id, now);
 }
 
+/**
+ * Sync `points[0]` to the canonical **Start Stitch** (X mirrors
+ * `startStitch.x`; Y forced to 0). `points[0]` survives as a synthetic
+ * mirror so the existing segment-from-id machinery keeps working —
+ * segments referencing `points[0].id` continue to resolve, and the
+ * first user-placed Segment's `from` is still `points[0].id`.
+ *
+ * Replaces the legacy x=0 invariant; the eye constraint is enforced
+ * separately by {@link clampStartStateToEye}.
+ */
 export function lockFirstPoint(project: Project): Project {
   const first = project.points[0];
-  if (!first || first.x === 0) return project;
+  if (!first) return project;
+  const startX = startStitchOf(project).x;
+  if (first.x === startX && first.y === 0) return project;
   const points = project.points.slice();
-  points[0] = { ...first, x: 0 };
+  points[0] = { ...first, x: startX, y: 0 };
   return { ...project, points };
 }
 
@@ -233,36 +257,88 @@ export function lockFirstPoint(project: Project): Project {
  *
  * Per-mode rule:
  *   - Design mode → never locked. The encoder re-plans from scratch on
- *     every render, so the start is a design-level knob the user can
- *     retune at any time without disturbing the authored geometry.
- *   - Manual mode → locked once at least one manual stitch exists.
- *     Each manual stitch was placed against the carriage state at the
+ *     every render, so both the Carriage Start and the Start Stitch
+ *     can be retuned at any time without disturbing authored geometry.
+ *   - Manual mode → locked once at least one user-placed manual stitch
+ *     exists. Each stitch was placed against the foot frame at the
  *     moment of placement; moving the start retroactively would shift
- *     every subsequent slot decision, invalidating the design.
- *
- * Note: the chain anchor (`points[0]`) is part of every project from
- * creation and is NOT counted as user geometry — it isn't a stitch.
+ *     every downstream slot decision, invalidating the design.
  */
 export function isStartLocked(project: Project): boolean {
   return project.mode === 'manual' && project.manualStitches.length > 0;
 }
 
 /**
- * Enforce the start-position rule from {@link isStartLocked} during a
- * store transition. When the project is locked and the next state is a
- * same-project mutation, revert `startXMm` to the previous value so
- * any setState that tries to move the start is silently ignored (the
- * UI drag handler relies on this — see editor/interactCallbacks.ts).
- * New project swaps (`prev.id !== next.id`) and the freely-placeable
- * states (design mode, empty manual) pass through unchanged.
+ * Enforce the Start Lock during a store transition. When the project
+ * is locked and the next state is a same-project mutation, revert
+ * both `startXMm` (the **Carriage Start**) and `startStitch` to the
+ * previous values so any setState that tries to move either is
+ * silently ignored. New project swaps and the freely-placeable
+ * states pass through unchanged.
  */
 export function lockStartXMm(prev: Project | null, project: Project): Project {
   if (!isStartLocked(project)) return project;
   if (!prev || prev.id !== project.id) return project;
-  const prevStart = prev.startXMm ?? 0;
-  const nextStart = project.startXMm ?? 0;
-  if (nextStart === prevStart) return project;
-  return { ...project, startXMm: prevStart };
+  const prevCarriage = prev.startXMm ?? 0;
+  const nextCarriage = project.startXMm ?? 0;
+  const prevStitch = startStitchOf(prev).x;
+  const nextStitch = startStitchOf(project).x;
+  if (nextCarriage === prevCarriage && nextStitch === prevStitch) return project;
+  return {
+    ...project,
+    startXMm: prevCarriage,
+    startStitch: { x: prevStitch },
+  };
+}
+
+/**
+ * Enforce the eye + reach invariants on **Carriage Start** and
+ * **Start Stitch** as a store invariant. Behaviour matches the
+ * grilling-locked rules:
+ *
+ *   • Carriage drag: when only `startXMm` moved (same-project), the
+ *     Start Stitch drags along by the same delta (preserves its
+ *     eye-relative offset).
+ *   • Start Stitch drag: when only `startStitch.x` moved, it is
+ *     hard-stopped at the Eye edge relative to the (unchanged)
+ *     carriage.
+ *   • First-load / migration / new project: each field is individually
+ *     clamped to its valid range.
+ */
+export function clampStartStateToEye(prev: Project | null, project: Project): Project {
+  const reachHalf = foot(project.suggestedFoot).carriageReachHalfMm;
+  const sameProject = prev && prev.id === project.id;
+  const prevCarriage = sameProject ? (prev.startXMm ?? 0) : null;
+  const prevStitch = sameProject ? startStitchOf(prev).x : null;
+
+  let nextCarriage = clampToRange(project.startXMm ?? 0, reachHalf);
+  let nextStitch = project.startStitch?.x ?? project.points[0]?.x ?? 0;
+
+  // Drag-along: a same-project carriage move slides the Start Stitch
+  // with it unless the caller already adjusted both fields.
+  if (prevCarriage !== null && prevStitch !== null) {
+    const carriageDelta = nextCarriage - prevCarriage;
+    const stitchDelta = nextStitch - prevStitch;
+    if (carriageDelta !== 0 && stitchDelta === 0) {
+      nextStitch = prevStitch + carriageDelta;
+    }
+  }
+
+  // Hard-stop the Start Stitch at the Eye edge.
+  nextStitch = clampToRange(nextStitch - nextCarriage, NEEDLE_SLOT_HALF_MM) + nextCarriage;
+
+  if (
+    (project.startXMm ?? 0) === nextCarriage &&
+    (project.startStitch?.x ?? project.points[0]?.x ?? 0) === nextStitch
+  ) {
+    return project;
+  }
+  return { ...project, startXMm: nextCarriage, startStitch: { x: nextStitch } };
+}
+
+function clampToRange(value: number, halfRange: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(halfRange, Math.max(-halfRange, value));
 }
 
 /**
@@ -298,7 +374,12 @@ export function lockProjectInvariants(prev: Project | null, next: Project): Proj
   if (p.mode === 'manual' && p.segments.length > 0) {
     p = { ...p, segments: [] };
   }
+  // Order matters: clamp first (enforces eye + reach + drag coupling),
+  // then lock (freezes both fields in manual mode after first user
+  // stitch), then sync points[0] to the resolved Start Stitch position.
+  p = clampStartStateToEye(prev, p);
   p = lockStartXMm(prev, p);
+  p = lockFirstPoint(p);
   return p;
 }
 
@@ -338,6 +419,23 @@ export function migrateProject(project: Project): Project {
   }
   if (typeof p.startXMm !== 'number' || Number.isNaN(p.startXMm)) {
     p = { ...p, startXMm: 0 };
+  }
+  // Clamp legacy Carriage Start to ±NEEDLE_SLOT_HALF_MM so a project
+  // saved with startXMm at e.g. +12mm (legal in the old model, illegal
+  // in the new eye-constraint model) loads cleanly.
+  const reachHalf = foot(p.suggestedFoot).carriageReachHalfMm;
+  const clampedStart = Math.min(NEEDLE_SLOT_HALF_MM, Math.max(-NEEDLE_SLOT_HALF_MM, p.startXMm ?? 0));
+  if ((p.startXMm ?? 0) !== clampedStart) {
+    p = { ...p, startXMm: Math.min(reachHalf, Math.max(-reachHalf, clampedStart)) };
+  }
+  // Synthesize the Start Stitch at (0, 0) for legacy projects — the
+  // old `lockFirstPoint` always pinned points[0].x to 0, so the
+  // canonical Start Stitch X is 0 by construction. The hoop-rewrite
+  // step below may shift points[0] off-zero (via re-centering); the
+  // final lockFirstPoint pass at the end of this function snaps
+  // points[0] back to the canonical Start Stitch position.
+  if (!p.startStitch || typeof p.startStitch.x !== 'number' || Number.isNaN(p.startStitch.x)) {
+    p = { ...p, startStitch: { x: 0 } };
   }
   if (typeof p.threadTension !== 'number' || Number.isNaN(p.threadTension)) {
     p = { ...p, threadTension: DEFAULT_THREAD_TENSION };
@@ -686,7 +784,7 @@ export function SAMPLE(opts: IdGenOptions = {}): Project {
   // Layout fits inside the SH7_MAX_Y_MM (43.69 mm) hoop — every Y stays
   // within the file-format-supported range so the seed exports cleanly.
   const layout: Array<{ x: number; y: number; type: 'straight' | 'satin' | 'start' }> = [
-    { x: 0,   y: 2,    type: 'start' },
+    { x: 0,   y: 0,    type: 'start' },
     { x: -15, y: 6,    type: 'straight' },
     { x: 12,  y: 10,   type: 'straight' },
     { x: 12,  y: 18,   type: 'satin' },    // vertical satin run at X=12

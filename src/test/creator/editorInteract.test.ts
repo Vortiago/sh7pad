@@ -588,16 +588,18 @@ describe('createEditorInteract — manual mode click gating', () => {
 });
 
 describe('liveBoundsForClick — manual mode Y cap', () => {
-  // Build a manual-mode project with the start anchor at a specific Y.
-  // currentManualFrame falls back to points[0] when manualStitches is
-  // empty, so this is the cleanest way to control frame.needleYMm
-  // without walking many stitches through the validator.
+  // Build a manual-mode project with the running needle at a specific Y.
+  // The Start Stitch always sits at Y=0; to position the needle elsewhere
+  // we drop a manual needle stitch at the requested Y (the live-bounds
+  // helper reads the frame after the last manual stitch).
   function manualWithStartY(startY: number, hoopH = 150): Project {
     const p = newProject('M', { mode: 'manual', suggestedFoot: 'S' });
     return {
       ...p,
       hoop: { halfW: p.hoop.halfW, h: hoopH },
-      points: [{ id: 'start', x: 0, y: startY }],
+      manualStitches: [
+        { kind: 'needle', x: 0, y: startY, dxRaw: 0, dyRaw: Math.round(startY * 12) },
+      ],
     };
   }
 

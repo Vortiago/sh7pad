@@ -72,10 +72,20 @@ export function buildInteractCallbacks(deps: InteractCallbackDeps): InteractionC
       projectStore.setState((p) => moveBgImage(p, dxMm, dyMm));
     },
     onMoveStart: (xMm) => {
-      // The store invariant (lockStartXMm via lockProjectInvariants)
-      // clamps the new value to ±NEEDLE_SLOT_HALF_MM of the chain
-      // anchor once geometry exists — no clamp needed at this layer.
+      // The store invariant (clampStartStateToEye) drags the **Start
+      // Stitch** along on a same-project carriage move (preserves its
+      // eye-relative offset). No clamp needed at this layer.
       projectStore.setState((p) => ({ ...p, startXMm: xMm, updatedAt: Date.now() }));
+    },
+    onMoveStartStitch: (xMm) => {
+      // The store invariant (clampStartStateToEye) hard-stops the
+      // **Start Stitch** at the Eye edge relative to the (unchanged)
+      // Carriage Start.
+      projectStore.setState((p) => ({
+        ...p,
+        startStitch: { x: xMm },
+        updatedAt: Date.now(),
+      }));
     },
   };
 }
