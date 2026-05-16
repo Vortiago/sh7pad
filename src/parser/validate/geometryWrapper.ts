@@ -6,8 +6,19 @@
 import { readBE32 as be32 } from '../bytes.js';
 import { checkStitchRecords } from './records.js';
 import { checkSatinPayload } from './satinPayload.js';
-import type { SubChunk } from './subChunk.js';
 import { type Ctx, fail, pass, warn } from './types.js';
+
+/** One sub-chunk inside the geometry wrapper, plus the 20 bytes that
+ *  precede its header (the per-element header / interstitial prefix).
+ *  Produced by the wrapper walker, consumed by the stitch-records and
+ *  satin-payload checks. */
+export interface SubChunk {
+  kind: 'stitch' | 'satin';
+  off: number;
+  len: number;
+  payload: Uint8Array;
+  preHeader: Uint8Array;
+}
 
 export function checkGeometryWrapper(
   ctx: Ctx,

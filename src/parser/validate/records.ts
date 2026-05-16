@@ -3,7 +3,7 @@
 // facts that emerge from walking the records.
 
 import { walkRecords } from '../../format/recordCodec.js';
-import type { SubChunk } from './subChunk.js';
+import type { SubChunk } from './geometryWrapper.js';
 import { type Ctx, fail, pass, warn } from './types.js';
 
 export function checkStitchRecords(ctx: Ctx, sub: SubChunk): void {

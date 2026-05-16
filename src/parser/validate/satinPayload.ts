@@ -2,7 +2,7 @@
 // counts, and the high-bit-clear constraint on all BE32 cone coordinates.
 
 import { readBE16 as be16, readBE32 as be32 } from '../bytes.js';
-import type { SubChunk } from './subChunk.js';
+import type { SubChunk } from './geometryWrapper.js';
 import { type Ctx, fail, pass, warn } from './types.js';
 
 export function checkSatinPayload(ctx: Ctx, sub: SubChunk): void {
