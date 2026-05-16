@@ -11,13 +11,11 @@ export interface Bbox {
   maxY: number;
 }
 
-export const EMPTY_VIEW_BBOX: Bbox = { minX: -8, maxX: 8, minY: 0, maxY: 20 };
-
 /**
  * Tight axis-aligned bbox over an iterable of points. Returns null when
  * the iterable is empty — callers that need a sentinel for empty input
- * supply their own (see {@link stitchesBbox}, which uses {0,0,0,0}, and
- * {@link xUmYumFromBbox}, which returns zero dimensions).
+ * supply their own (see {@link xUmYumFromBbox}, which returns zero
+ * dimensions, and {@link viewBbox}, which returns the seed view).
  */
 export function boundsOf(points: Iterable<{ x: number; y: number }>): Bbox | null {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
@@ -48,10 +46,6 @@ export function xUmYumFromBbox(
   };
 }
 
-export function stitchesBbox(stitches: readonly Stitch[]): Bbox {
-  return boundsOf(stitches) ?? { minX: 0, maxX: 0, minY: 0, maxY: 0 };
-}
-
 /**
  * How far the needle has travelled from the start of a motif to its last
  * stitch, in mm. The SH7 chunk replays from wherever the needle came to
@@ -66,8 +60,9 @@ export function motifOffsetMm(stitches: readonly Stitch[]): { dx: number; dy: nu
 }
 
 export function viewBbox(stitches: readonly Stitch[], marginMm: number): Bbox {
-  if (stitches.length === 0) return { ...EMPTY_VIEW_BBOX };
-  const tight = stitchesBbox(stitches);
+  const tight = boundsOf(stitches);
+  // Empty stitch list → the seed view that keeps the stitch axis on screen.
+  if (!tight) return { minX: -8, maxX: 8, minY: 0, maxY: 20 };
   // Always include X=0 with at least 2mm of breathing room on either side.
   const minX = Math.min(tight.minX, -2);
   const maxX = Math.max(tight.maxX, 2);

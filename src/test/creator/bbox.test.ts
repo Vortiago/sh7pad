@@ -1,26 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   boundsOf,
-  stitchesBbox,
   viewBbox,
   xUmYumFromBbox,
-  EMPTY_VIEW_BBOX,
 } from '../../creator/bbox.js';
 import type { Stitch } from '../../creator/pipeline/stitch.js';
 
 const needle = (x: number, y: number): Stitch => ({
   kind: 'needle', x, y, dxRaw: 0, dyRaw: 0, sourceIndex: -1, carriageXMm: 0,
-});
-
-describe('stitchesBbox', () => {
-  it('returns the empty bbox when there are no stitches', () => {
-    expect(stitchesBbox([])).toEqual({ minX: 0, maxX: 0, minY: 0, maxY: 0 });
-  });
-
-  it('computes tight bounds across mixed stitches', () => {
-    const stitches = [needle(-5, 1), needle(3, 8), needle(-2, 4), needle(7, 0)];
-    expect(stitchesBbox(stitches)).toEqual({ minX: -5, maxX: 7, minY: 0, maxY: 8 });
-  });
 });
 
 describe('boundsOf', () => {
@@ -64,8 +51,8 @@ describe('xUmYumFromBbox', () => {
 });
 
 describe('viewBbox', () => {
-  it('returns EMPTY_VIEW_BBOX (the seed view) for an empty stitch list', () => {
-    expect(viewBbox([], 6)).toEqual(EMPTY_VIEW_BBOX);
+  it('returns the seed view for an empty stitch list', () => {
+    expect(viewBbox([], 6)).toEqual({ minX: -8, maxX: 8, minY: 0, maxY: 20 });
   });
 
   it('always includes X in [-2, +2] even when all stitches are positive', () => {
