@@ -1,25 +1,25 @@
 <template id="insp-segment-meta">
-  <div class="ed-insp-meta">
+  <div class="ed-insp-meta" data-testid="inspector-segment">
     <span class="ed-insp-lbl">SEGMENT</span>
     <span class="ed-insp-id" data-slot="id"></span>
-    <span class="ed-insp-len" data-value="len" data-slot="len"></span>
+    <span class="ed-insp-len" data-value="len" data-slot="len" data-testid="inspector-length"></span>
     <span class="ed-insp-imported" data-slot="imported" hidden>&middot; imported (preview only &mdash; re-author for editable taper)</span>
   </div>
 </template>
 
 <template id="insp-manual-meta">
-  <div class="ed-insp-meta">
+  <div class="ed-insp-meta" data-testid="inspector-manual-satin">
     <span class="ed-insp-lbl">SATIN</span>
     <span class="ed-insp-id" data-slot="id"></span>
-    <span class="ed-insp-len" data-value="len" data-slot="len"></span>
+    <span class="ed-insp-len" data-value="len" data-slot="len" data-testid="inspector-length"></span>
   </div>
 </template>
 
 <template id="insp-point-meta">
-  <div class="ed-insp-meta">
+  <div class="ed-insp-meta" data-testid="inspector-point">
     <span class="ed-insp-lbl">POINT</span>
     <span class="ed-insp-id" data-slot="id"></span>
-    <span class="ed-insp-len" data-slot="coords"></span>
+    <span class="ed-insp-len" data-slot="coords" data-testid="inspector-point-coords"></span>
     <span class="ed-insp-imported" data-slot="start-note" hidden>&middot; start anchor (locked at X=0)</span>
   </div>
 </template>

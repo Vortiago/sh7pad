@@ -333,6 +333,7 @@ function buildSlider(
   input.addEventListener('input', () => onInput(Number(input.value)));
   const valSpan = slot(wrap, 'val');
   valSpan.dataset['value'] = control;
+  valSpan.dataset['testid'] = `inspector-${control}-value`;
   valSpan.textContent = mmLabel(Number(value));
   return wrap;
 }

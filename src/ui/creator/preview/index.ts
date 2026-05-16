@@ -81,6 +81,7 @@ export function attachPreviewPane(deps: PreviewPaneDeps): PreviewPaneHandle {
     const ui = uiStore.getState();
     pvHeader.textContent = '';
     const label = doc.createElement('span');
+    label.dataset['testid'] = 'preview-drop-count';
     label.textContent = `Preview · ${ui.step}/${seqLen} drops`;
     pvHeader.appendChild(label);
   }
