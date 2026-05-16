@@ -116,6 +116,12 @@ function manualSequence(project: Project, startXMm: number, startStitchXMm: numb
   // "nothing to render" shape, matching design-mode encodeSegments.
   // Non-empty projects lead with the 'start' + **Start Stitch** needle,
   // then the user's manual stitches.
+  //
+  // The marker is pinned at (startStitchXMm, 0) so the polyline-driven
+  // preview doesn't draw a phantom segment from origin to the Start
+  // Stitch, AND so trackFoot reports needleXMm = startStitchXMm for the
+  // empty-project frame — the jump live window keys off this when
+  // deciding where the user can place their first jump.
   const userStitches: Stitch[] = [];
   let carriage = startXMm;
   for (const m of project.manualStitches) {
@@ -124,11 +130,11 @@ function manualSequence(project: Project, startXMm: number, startStitchXMm: numb
     userStitches.push(stitchFromManual(m, carriage));
   }
   if (userStitches.length === 0) {
-    return [{ kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: startXMm }];
+    return [{ kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: startXMm }];
   }
   const dxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
   return [
-    { kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: startXMm },
+    { kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: startXMm },
     { kind: 'needle', x: startStitchXMm, y: 0, dxRaw, dyRaw: 0, sourceIndex: -1, carriageXMm: startXMm },
     ...userStitches,
   ];

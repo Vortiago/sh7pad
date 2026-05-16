@@ -68,6 +68,53 @@ describe('sequenceFromProject', () => {
     }
   });
 
+  it('design mode: the start marker sits at startStitch.x (no phantom 0,0 vertex before the leading needle)', () => {
+    // The preview's pathOf walks every Stitch in sequence order, drawing
+    // a polyline between consecutive vertices. Anchoring the leading
+    // 'start' marker at (0, 0) when startStitch.x ≠ 0 produces a visible
+    // phantom segment from (0,0) to the Start Stitch in the preview;
+    // user-reported bug. The encoder still emits the leading needle's
+    // dxRaw = round(startStitch.x × 8) for byte fidelity — only the
+    // marker's (x, y) needs to coincide with the first needle drop.
+    const a = { id: 'a', x: 0, y: 0 };
+    const b = { id: 'b', x: 5, y: 5 };
+    const base = newProject('Design', { idGen, mode: 'design', suggestedFoot: 'S' });
+    const project: Project = {
+      ...base,
+      points: [a, b],
+      segments: [{ id: 's', from: a.id, to: b.id, type: 'straight' }],
+      startStitch: { x: 2 },
+    };
+    const seq = sequenceFromProject(project);
+    const start = seq[0]!;
+    expect(start.kind).toBe('start');
+    expect(start.x).toBeCloseTo(2, 6);
+    expect(start.y).toBe(0);
+    // The first machine record (the leading needle) still encodes dx=16 so
+    // the .sh7 byte stream is unchanged.
+    const leadingNeedle = seq[1]!;
+    expect(leadingNeedle.kind).toBe('needle');
+    if (leadingNeedle.kind === 'needle') {
+      expect(leadingNeedle.dxRaw).toBe(16);
+    }
+  });
+
+  it('manual mode (empty project): the start marker sits at startStitch.x so the jump live window centres there', () => {
+    // Same fix on the manual branch: with no user stitches placed the
+    // sequence is just [start]. The trackFoot frame derived from this
+    // sequence is the only signal currentManualFrame has for "where will
+    // the next click land?" — anchoring the marker on startStitch.x makes
+    // the jump live window centre on the Start Stitch, not on origin.
+    const base = newProject('Manual', { idGen, mode: 'manual', suggestedFoot: 'S' });
+    const project: Project = { ...base, startStitch: { x: 2 } };
+    const seq = sequenceFromProject(project);
+    expect(seq).toHaveLength(1);
+    const start = seq[0]!;
+    expect(start.kind).toBe('start');
+    expect(start.x).toBeCloseTo(2, 6);
+    expect(start.y).toBe(0);
+  });
+
   it('encoderMode="uniform" produces strictly more needle stitches than the default compact mode', () => {
     // Construct a design with one 2.5 mm slot-fitting segment. Compact
     // mode emits a single SHORT via the fast path (2.5 mm ≤ 3 mm slot

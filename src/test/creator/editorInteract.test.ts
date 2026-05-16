@@ -642,6 +642,182 @@ describe('liveBoundsForClick — manual mode Y cap', () => {
   });
 });
 
+describe('createEditorInteract — Add mode click-through over the foot markers', () => {
+  // Regression: PR #4 added a `data-role="start-stitch"` / `start-marker`
+  // pointerdown handler that swallowed every click (preventDefault + return)
+  // regardless of the active tool. In Add mode that blocks the user from
+  // placing a manual stitch inside the Needle Slot — the very region the
+  // Start Stitch + Foot Frame markers cover. The fix is to let Add-mode
+  // clicks fall through to the add-point branch; the marker drag still
+  // works in Select / Move tools.
+  //
+  // The setup here mirrors the renderer: append a `data-role="start-marker"`
+  // group with an `.ed-start-body` rect over the foot region, and a
+  // `data-role="start-stitch"` group with an `.ed-start-stitch-hit` rect
+  // spanning the slot. Pointer events on these targets exercise the
+  // routing path the production renderer wires up.
+
+  function setupManualWithMarkers(opts: {
+    activeStitch: 'needle' | 'jump';
+    locked?: boolean;
+    startStitchX?: number;
+    foot?: 'S' | 'B';
+    initialTool?: Tool;
+  }) {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
+    Object.defineProperty(svg, 'getBoundingClientRect', {
+      value: () => ({ left: 0, top: 0, width: 600, height: 400, right: 600, bottom: 400, x: 0, y: 0, toJSON: () => ({}) }),
+      configurable: true,
+    });
+    const startStitchX = opts.startStitchX ?? 0;
+    const project = {
+      mode: 'manual' as const,
+      hoop: { halfW: 60, h: 150 },
+      suggestedFoot: opts.foot ?? 'S',
+      points: [{ id: 'start', x: startStitchX, y: 0 }],
+      segments: [],
+      manualStitches: [],
+      startXMm: 0,
+      startStitch: { x: startStitchX },
+      bg: null,
+    };
+    const spies = {
+      onAddPoint: vi.fn(),
+      onSelectPoint: vi.fn(),
+      onMovePoint: vi.fn(),
+      onSelectSegment: vi.fn(),
+      onHover: vi.fn(),
+      onHoverValidity: vi.fn(),
+      onMoveStart: vi.fn(),
+      onMoveStartStitch: vi.fn(),
+    };
+    // Foot marker group at carriage X = 0 with body+slot rects.
+    const markerG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    markerG.setAttribute('data-role', 'start-marker');
+    markerG.setAttribute('data-locked', opts.locked ? 'true' : 'false');
+    const bodyRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    bodyRect.setAttribute('class', 'ed-start-body');
+    markerG.appendChild(bodyRect);
+    const slotRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    slotRect.setAttribute('class', 'ed-start-slot');
+    markerG.appendChild(slotRect);
+    svg.appendChild(markerG);
+    // Start Stitch group with the transparent hit rect spanning the slot.
+    const stitchG = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    stitchG.setAttribute('data-role', 'start-stitch');
+    stitchG.setAttribute('data-locked', opts.locked ? 'true' : 'false');
+    const stitchHit = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    stitchHit.setAttribute('class', 'ed-start-stitch-hit');
+    stitchG.appendChild(stitchHit);
+    svg.appendChild(stitchG);
+    const handle = createEditorInteract(svg, {
+      getView: () => view,
+      getProject: () => project as never,
+      ...spies,
+    });
+    handle.setTool(opts.initialTool ?? 'add');
+    handle.setActiveStitch(opts.activeStitch);
+    handle.attach();
+    return { svg, handle, spies, markerG, stitchG, stitchHit, bodyRect };
+  }
+
+  // hoop x → clientX = offsetX + x*zoom = 100 + x*5 (view above).
+  const cx = (x: number) => 100 + x * 5;
+  const cy = (y: number) => 50 + y * 5;
+
+  it('Add tool + Start Stitch hit area: click fires onAddPoint, NOT onMoveStartStitch', () => {
+    const { stitchHit, spies } = setupManualWithMarkers({ activeStitch: 'needle' });
+    // Click at hoop (0, 0) — the slot's hit rect would normally swallow this
+    // in any non-pan tool. In Add mode it must fall through to the
+    // add-point branch.
+    stitchHit.dispatchEvent(new MouseEvent('pointerdown', {
+      bubbles: true, button: 0, clientX: cx(0), clientY: cy(0),
+    }) as unknown as PointerEvent);
+    expect(spies.onAddPoint).toHaveBeenCalledTimes(1);
+    expect(spies.onMoveStartStitch).not.toHaveBeenCalled();
+  });
+
+  it('Add tool + Foot Frame body hit area: click fires onAddPoint, NOT onMoveStart', () => {
+    const { bodyRect, spies } = setupManualWithMarkers({ activeStitch: 'needle' });
+    bodyRect.dispatchEvent(new MouseEvent('pointerdown', {
+      bubbles: true, button: 0, clientX: cx(2), clientY: cy(0),
+    }) as unknown as PointerEvent);
+    expect(spies.onAddPoint).toHaveBeenCalledTimes(1);
+    expect(spies.onMoveStart).not.toHaveBeenCalled();
+  });
+
+  it('Add tool + locked Start Stitch: click still falls through to add (locked drag would have been a no-op anyway)', () => {
+    // Manual mode after the Start Lock engages: the diamond is locked, but
+    // the user can still place new manual stitches inside the slot region.
+    const { stitchHit, spies } = setupManualWithMarkers({
+      activeStitch: 'needle', locked: true,
+    });
+    stitchHit.dispatchEvent(new MouseEvent('pointerdown', {
+      bubbles: true, button: 0, clientX: cx(0), clientY: cy(1),
+    }) as unknown as PointerEvent);
+    expect(spies.onAddPoint).toHaveBeenCalledTimes(1);
+    expect(spies.onMoveStartStitch).not.toHaveBeenCalled();
+  });
+
+  it('Select tool + Start Stitch hit area: drag still routes through onMoveStartStitch (regression guard)', () => {
+    const { stitchHit, spies } = setupManualWithMarkers({
+      activeStitch: 'needle', initialTool: 'select',
+    });
+    stitchHit.dispatchEvent(new MouseEvent('pointerdown', {
+      bubbles: true, button: 0, clientX: cx(0), clientY: cy(0),
+    }) as unknown as PointerEvent);
+    window.dispatchEvent(new MouseEvent('pointermove', {
+      bubbles: true, clientX: cx(1), clientY: cy(0),
+    }) as unknown as PointerEvent);
+    expect(spies.onMoveStartStitch).toHaveBeenCalled();
+    expect(spies.onAddPoint).not.toHaveBeenCalled();
+  });
+
+  it('Move tool + Foot Frame body: drag still routes through onMoveStart (regression guard)', () => {
+    const { bodyRect, spies } = setupManualWithMarkers({
+      activeStitch: 'needle', initialTool: 'move',
+    });
+    bodyRect.dispatchEvent(new MouseEvent('pointerdown', {
+      bubbles: true, button: 0, clientX: cx(0), clientY: cy(0),
+    }) as unknown as PointerEvent);
+    window.dispatchEvent(new MouseEvent('pointermove', {
+      bubbles: true, clientX: cx(2), clientY: cy(0),
+    }) as unknown as PointerEvent);
+    expect(spies.onMoveStart).toHaveBeenCalled();
+    expect(spies.onAddPoint).not.toHaveBeenCalled();
+  });
+});
+
+describe('liveBoundsForClick — empty manual project anchors jump window on the Start Stitch', () => {
+  // Regression: with no manual stitches placed yet, the carriage frame
+  // used to fall back to `points[0]` (synthetic Start Stitch mirror) with
+  // a needleXMm hard-coded to 0 from the start-marker emit. That makes
+  // the jump live window centre on 0 instead of on the actual Start
+  // Stitch position. The fix is to anchor the frame's needleXMm to the
+  // Start Stitch when no user stitches exist (the implicit first needle
+  // drop lives at startStitch.x).
+
+  it('jump window centres on startStitch.x when no user stitch has been placed', () => {
+    const p = newProject('SS', { mode: 'manual', suggestedFoot: 'S' });
+    const moved: Project = { ...p, startStitch: { x: 2 } };
+    const b = liveBoundsForClick(moved, 'jump');
+    // PER_RECORD_JUMP_CAP_MM = 1 → window is [startStitch − 1, startStitch + 1].
+    expect(b.xMin).toBeCloseTo(1, 6);
+    expect(b.xMax).toBeCloseTo(3, 6);
+  });
+
+  it('needle window centres on the carriage even when startStitch is offset', () => {
+    // Sanity guard: only the JUMP window tracks the needle (= start stitch).
+    // The NEEDLE window tracks the carriage, which sits at startXMm=0 here.
+    const p = newProject('NN', { mode: 'manual', suggestedFoot: 'S' });
+    const moved: Project = { ...p, startStitch: { x: 2 } };
+    const b = liveBoundsForClick(moved, 'needle');
+    // Carriage = 0, slotHalf = 3.5 → window is [-3.5, 3.5].
+    expect(b.xMin).toBeCloseTo(-3.5, 6);
+    expect(b.xMax).toBeCloseTo(3.5, 6);
+  });
+});
+
 describe('liveWindowGeometry — overlay/click-gate contract', () => {
   // Pins the renderer's overlay to the click-gate. If a click would
   // pass liveBoundsForClick, the geometry helper that render.ts uses

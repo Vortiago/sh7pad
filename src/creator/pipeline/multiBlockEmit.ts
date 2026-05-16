@@ -530,9 +530,12 @@ function runMultiBlock(opts: {
  * preview / tracker consume. Empty walks (no points, no segments, no
  * contributing manual stitches) yield an empty sequence — matching the
  * "nothing to render" shape also returned by safeSequenceFromProject on
- * FootEncodeException. Non-empty walks get a chain-anchor 'start' marker
- * prepended at design (0, 0), followed by the **Start Stitch** needle
- * record at `(startStitchXMm, 0)` — the first real machine record.
+ * FootEncodeException. Non-empty walks get a 'start' marker prepended at
+ * `(startStitchXMm, 0)` — the same position as the leading **Start
+ * Stitch** needle record so the preview's polyline-driven pathOf does
+ * not paint a phantom segment from machine origin to startStitch.x.
+ * The leading needle still carries `dxRaw = round(startStitchXMm × 8)`
+ * for byte fidelity.
  */
 function buildSequenceWithStartMarker(
   flatStitches: readonly Stitch[],
@@ -542,7 +545,7 @@ function buildSequenceWithStartMarker(
   if (flatStitches.length === 0) return [];
   const startDxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
   return [
-    { kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: initialCarriageXMm },
+    { kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: initialCarriageXMm },
     {
       kind: 'needle',
       x: startStitchXMm,

@@ -302,6 +302,22 @@ Selectors stable for this feature, already present in the renderer:
 **Screenshots needed (for doc-writer):**
 - Manual Mode editor after first stitch placed, foot icon dimmed and `not-allowed` cursor visible on hover.
 
+## Flow: Manual Mode Add tool routes clicks through the foot markers
+
+**Where:** Fresh Manual Mode project on Foot S, no user stitches placed.
+**Goal:** User clicks inside the Needle Slot (over the Start Stitch / foot icon) with the Add tool active and a manual needle stitch lands at the click position.
+**Steps:**
+1. Create a Manual Mode project via `button[data-action="new"]`, `label[data-option="manual"]`, `button[data-action="np-create"]`.
+2. Click `button[data-tool="add"]` -> Add tool becomes active.
+3. Click `button[data-stitch="needle"]` -> Needle stitch kind becomes active.
+4. Click inside the `.ed-start-stitch-hit` rect (the Needle Slot region around the Start Stitch diamond). Pre-fix this rect intercepted every click in pointerdown; post-fix the Add-tool branch lets it through to onAddPoint.
+5. Read `__sh7pad_store.getState().manualStitches.length` -> 1; the last entry has `kind: 'needle'`.
+6. Repeat with `Jump` kind: the live Jump window centres on the Start Stitch (no user stitches yet), so the empty-project Jump anchor matches the diamond visually.
+**Verifies:** Add-mode click-through over `[data-role="start-marker"]` and `[data-role="start-stitch"]` (interact.ts skips the early-return when action === 'add'), `currentManualFrame` returning a frame anchored at the Start Stitch when there are no user stitches.
+**Screenshots needed (for doc-writer):**
+- Editor in Manual Mode with Add + Needle active, live Needle window painted around the foot.
+- Same shot but with Jump active, live Jump window painted around the Start Stitch diamond.
+
 ## Flow: Exported file encodes Start Stitch as the leading machine record
 
 **Where:** Edit mode, fresh Design project, Carriage Start at 0, Start Stitch at +2 mm.
