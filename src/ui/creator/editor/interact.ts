@@ -60,8 +60,13 @@ export interface InteractionCallbacks {
   /** Drag delta in mm for the background image. */
   onBgMove?(dxMm: number, dyMm: number): void;
   /** New project.startXMm (mm) for the start marker drag. The store
-   *  invariant clamps this against the slot-containment rule. */
+   *  invariant clamps this against the slot-containment rule and drags
+   *  the **Start Stitch** along (preserves the eye-relative offset). */
   onMoveStart?(xMm: number): void;
+  /** New project.startStitch.x (mm) for the Start Stitch drag. The store
+   *  invariant hard-stops at the Eye edge relative to the (unchanged)
+   *  Carriage Start. */
+  onMoveStartStitch?(xMm: number): void;
 }
 
 export interface InteractionHandle {
@@ -85,6 +90,7 @@ export function createEditorInteract(
     | { kind: 'pan' }
     | { kind: 'bg' }
     | { kind: 'start' }
+    | { kind: 'start-stitch' }
     | null = null;
   let dragStart: { clientX: number; clientY: number } | null = null;
 
@@ -93,16 +99,30 @@ export function createEditorInteract(
     const pointGroup = (target as Element).closest('[data-point-id]');
     const segGroup = (target as Element).closest('[data-segment-id]');
     const bgGroup = (target as Element).closest('[data-role="bg-image"]');
+    const startStitchGroup = (target as Element).closest('[data-role="start-stitch"]');
     const startGroup = (target as Element).closest('[data-role="start-marker"]');
     const action = determineActionFromPointer(ev, tool);
 
-    // Start marker — drag in any tool to retune the carriage's design-
-    // start X. Per the per-mode rule (project.ts:isStartLocked):
-    // design mode is always draggable; manual mode locks the start
-    // once any manual stitch exists (the carriage state would
-    // retroactively change otherwise). The marker's data-locked attr
-    // mirrors that rule so we can short-circuit here without
-    // re-deriving it.
+    // Start Stitch — checked BEFORE the carriage's foot marker so a
+    // click inside the inner slot (where the Start Stitch glyph lives)
+    // routes to onMoveStartStitch instead of onMoveStart. Hard-stopped
+    // at the Eye edge by the store invariant (clampStartStateToEye).
+    // Locked alongside the carriage in manual mode after the first
+    // user stitch.
+    if (startStitchGroup && action !== 'pan') {
+      const locked = startStitchGroup.getAttribute('data-locked') === 'true';
+      ev.preventDefault();
+      if (!locked) {
+        dragging = { kind: 'start-stitch' };
+        dragStart = { clientX: ev.clientX, clientY: ev.clientY };
+      }
+      return;
+    }
+
+    // Carriage Start marker (the foot icon) — drag in any tool to slide
+    // the carriage along X. Drags the Start Stitch along (drag-along
+    // behavior in clampStartStateToEye). Locked in manual mode once
+    // the first user stitch is placed.
     if (startGroup && action !== 'pan') {
       const locked = startGroup.getAttribute('data-locked') === 'true';
       ev.preventDefault();
@@ -213,13 +233,20 @@ export function createEditorInteract(
         return;
       }
       if (dragging.kind === 'start') {
-        // Snap the start marker to the cursor's hoop-X. Y is ignored —
-        // the carriage's lateral position is one-dimensional and the
-        // marker always renders at the chain anchor's Y. The store
-        // invariant (lockStartXMm) clamps to ±slotHalf of the chain
-        // anchor once geometry exists, so we don't pre-clamp here.
+        // Snap the carriage to the cursor's hoop-X. Y is ignored —
+        // the carriage is one-dimensional. The store invariant
+        // (clampStartStateToEye) clamps to reach AND drags the Start
+        // Stitch along (preserving the eye-relative offset).
         const raw = hoopFromClient(ev, rect, view);
         cb.onMoveStart?.(raw.x);
+        return;
+      }
+      if (dragging.kind === 'start-stitch') {
+        // Snap the Start Stitch to the cursor's hoop-X. The store
+        // invariant hard-stops at the Eye edge relative to the
+        // (unchanged) Carriage Start.
+        const raw = hoopFromClient(ev, rect, view);
+        cb.onMoveStartStitch?.(raw.x);
         return;
       }
       // Point drag. (Pan/bg branches above only return when dragStart is set,

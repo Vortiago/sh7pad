@@ -50,7 +50,7 @@ describe('sequenceFromProject — design branch matches encodeSegments', () => {
 });
 
 describe('sequenceFromProject — manual branch wraps stored stitches', () => {
-  it('emits a start marker followed by the manual stitches verbatim (no encoder call)', () => {
+  it('emits a start marker + Start Stitch needle followed by the manual stitches verbatim', () => {
     const base = newProject('M', { idGen, mode: 'manual', suggestedFoot: 'S' });
     const project: Project = {
       ...base,
@@ -61,24 +61,26 @@ describe('sequenceFromProject — manual branch wraps stored stitches', () => {
       ],
     };
     const seq = sequenceFromProject(project);
-    // Manual mode: needles plant, jumps walk the carriage by dxRaw/8.
-    // sourceIndex is -1 for every record (no originating segment).
+    // 'start' marker (machine origin), then **Start Stitch** needle at
+    // (0, 0), then the user's manual stitches. Needles plant; jumps
+    // walk the carriage by dxRaw/8.
     expect(seq).toEqual([
       { kind: 'start',  x: 0,   y: 0, sourceIndex: -1, carriageXMm: 0 },
+      { kind: 'needle', x: 0,   y: 0, dxRaw: 0, dyRaw: 0,  sourceIndex: -1, carriageXMm: 0 },
       { kind: 'needle', x: 1,   y: 0, dxRaw: 8, dyRaw: 0,  sourceIndex: -1, carriageXMm: 0 },
       { kind: 'jump',   x: 1.5, y: 0, dxRaw: 4, dyRaw: 0,  sourceIndex: -1, carriageXMm: 0.5 },
       { kind: 'needle', x: 2,   y: 3, dxRaw: 4, dyRaw: 36, sourceIndex: -1, carriageXMm: 0.5 },
     ]);
   });
 
-  it('start position comes from points[0]', () => {
+  it("start marker sits at machine origin; the **Start Stitch** sits at startStitch.x", () => {
+    // Y-axis values on points[0] are normalised to 0 by lockFirstPoint
+    // (the Start Stitch is always at Y=0). The 'start' marker reports
+    // the cursor BEFORE any record runs (machine origin = (0, 0)).
     const base = newProject('M', { idGen, mode: 'manual', suggestedFoot: 'B' });
-    const project: Project = {
-      ...base,
-      points: [{ id: 'a', x: 0, y: 7 }],
-    };
+    const project: Project = { ...base, points: [{ id: 'a', x: 0, y: 7 }] };
     const seq = sequenceFromProject(project);
-    expect(seq[0]).toEqual({ kind: 'start', x: 0, y: 7, sourceIndex: -1, carriageXMm: 0 });
+    expect(seq[0]).toEqual({ kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: 0 });
   });
 
   it('foot id does not affect the manual branch (no encoder, no planner)', () => {
@@ -368,6 +370,7 @@ describe('sequenceFromProject + trackFoot — jump carriage walks by dxHi mm', (
   it('manual jump with dxLow != 0 walks the carriage by dxHi mm only', () => {
     // dx = dxLow + dxHi*8 = 9 + 1*8 = 17 raw = 2.125 mm cursor displacement.
     // Carriage should slide by dxHi = 1 mm (not 2.125 mm).
+    // seq = [start, Start Stitch, user-jump] → user-jump is seq[2].
     const base = newProject('M', { idGen, mode: 'manual', suggestedFoot: 'S' });
     const project: Project = {
       ...base,
@@ -377,13 +380,13 @@ describe('sequenceFromProject + trackFoot — jump carriage walks by dxHi mm', (
     };
     const seq = sequenceFromProject(project);
     const track = trackFoot(seq);
-    expect(track[1]!.carriageXMm).toBeCloseTo(1, 6);
+    expect(track[2]!.carriageXMm).toBeCloseTo(1, 6);
   });
 
   it('encoder-style jump (dxLow = 0) walks the carriage by the full dx/8 mm', () => {
     // Encoder-emitted jumps always cap |dx| at 8 raw, so dxHi = ±1 and
-    // dxLow = 0. Both carriage models agree here — this test pins the
-    // existing behavior so the dxHi fix doesn't regress encoder output.
+    // dxLow = 0. Both carriage models agree here.
+    // seq = [start, Start Stitch, user-jump] → user-jump is seq[2].
     const base = newProject('M', { idGen, mode: 'manual', suggestedFoot: 'S' });
     const project: Project = {
       ...base,
@@ -393,7 +396,7 @@ describe('sequenceFromProject + trackFoot — jump carriage walks by dxHi mm', (
     };
     const seq = sequenceFromProject(project);
     const track = trackFoot(seq);
-    expect(track[1]!.carriageXMm).toBeCloseTo(1, 6);
+    expect(track[2]!.carriageXMm).toBeCloseTo(1, 6);
   });
 });
 

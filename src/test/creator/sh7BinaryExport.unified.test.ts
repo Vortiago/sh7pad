@@ -84,9 +84,17 @@ function manualMirrorOf(seg: Project): Project {
   if (!start || start.kind !== 'start') {
     throw new Error('expected sequence to start with a start stitch');
   }
+  // The encoder prepends a 'start' marker + a **Start Stitch** needle
+  // record. The manual mirror builds the same prefix automatically when
+  // it re-encodes, so we strip BOTH from the source-of-truth iteration.
   const manualStitches: ManualStitchInput[] = [];
+  let skippedStartStitch = false;
   for (const s of seq) {
     if (s.kind === 'start') continue;
+    if (!skippedStartStitch && s.sourceIndex === -1) {
+      skippedStartStitch = true;
+      continue;
+    }
     manualStitches.push({
       kind: s.kind,
       x: s.x,

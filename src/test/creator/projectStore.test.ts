@@ -49,18 +49,21 @@ describe('createProjectStore', () => {
     expect(b).toHaveBeenCalledTimes(1);
   });
 
-  it('setState forces points[0].x back to 0 (lockFirstPoint invariant)', () => {
+  it('setState syncs points[0] to the canonical Start Stitch (x mirror, y=0)', () => {
     const initial = newProject('A');
     const store = createProjectStore(initial);
+    // Direct points[0] manipulation: the lockFirstPoint pass re-syncs
+    // points[0].x to the (unchanged) Start Stitch X (= 0 by default)
+    // and forces y back to 0 (Start Stitch is always at the Y axis).
     store.setState((p) => ({
       ...p,
       points: [
-        { id: 'a', x: 5, y: 10 }, // off-axis first point
+        { id: 'a', x: 5, y: 10 },
         { id: 'b', x: 7, y: 20 },
       ],
     }));
     const after = store.getState();
-    expect(after.points[0]?.x).toBe(0);
-    expect(after.points[0]?.y).toBe(10);
+    expect(after.points[0]?.x).toBe(0); // mirrors startStitch.x (= 0 here)
+    expect(after.points[0]?.y).toBe(0); // y forced to 0
   });
 });

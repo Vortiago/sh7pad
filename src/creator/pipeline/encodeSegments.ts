@@ -39,26 +39,29 @@ export function encodeSegments(
   foot: Foot,
   opts: PlanFootOptions = {},
   startXMm = 0,
+  startStitchXMm = 0,
 ): StitchSequence {
   if (segments.some((s) => s.type === 'satin')) {
-    return emitDesignMultiBlock(points, segments, foot, opts, startXMm).sequence;
+    return emitDesignMultiBlock(points, segments, foot, opts, startXMm, startStitchXMm).sequence;
   }
   const byId = new Map<string, Point>();
   for (const p of points) byId.set(p.id, p);
 
-  const groupsByStraightSegIdx = computeGroupedRecords(points, segments, foot, opts, startXMm);
+  const groupsByStraightSegIdx = computeGroupedRecords(
+    points, segments, foot, opts, startXMm, startStitchXMm,
+  );
 
-  const stitches: Stitch[] = [];
+  // Collect user-segment records first; only prepend the **Start
+  // Stitch** when there's at least one user record to emit. Empty /
+  // invalid input returns an empty sequence (matches the canonical
+  // "nothing to render" shape used by safeSequenceFromProject).
+  const userStitches: Stitch[] = [];
 
   segments.forEach((seg, idx) => {
     if (seg.type !== 'straight') return;
     const a = byId.get(seg.from);
     const b = byId.get(seg.to);
     if (!a || !b) return;
-
-    if (stitches.length === 0) {
-      stitches.push({ kind: 'start', x: a.x, y: a.y, sourceIndex: -1, carriageXMm: startXMm });
-    }
 
     const records = groupsByStraightSegIdx[idx];
     if (records && records.length > 0) {
@@ -68,10 +71,7 @@ export function encodeSegments(
       const baseX = a.x - (last.endXMm - dx);
       const baseY = a.y - (last.endYMm - dy);
       for (const r of records) {
-        // The planner already computed the carriage X for each record
-        // (it's the consequence of its slot decisions); thread it onto
-        // the Stitch directly so the tracker doesn't need to re-derive it.
-        stitches.push({
+        userStitches.push({
           kind: r.kind === 'jump' ? 'jump' : 'needle',
           x: baseX + r.endXMm,
           y: baseY + r.endYMm,
@@ -84,7 +84,37 @@ export function encodeSegments(
     }
   });
 
-  return stitches;
+  if (userStitches.length === 0) return [];
+  return [...prependStartFrames(startXMm, startStitchXMm), ...userStitches];
+}
+
+/**
+ * Build the leading `'start'` marker + **Start Stitch** needle record
+ * that prefix every encoded sequence. The 'start' marker represents
+ * the machine's initial state (cursor at design origin (0, 0), carriage
+ * at the Carriage Start). The Start Stitch is a real needle record
+ * with `dx = round(startStitchXMm * X_UNITS_PER_MM)`, `dy = 0` — by
+ * construction `|dx| ≤ NEEDLE_SLOT_HALF_MM × X_UNITS_PER_MM = 28 raw`,
+ * which fits a short-stitch record.
+ *
+ * After the Start Stitch the cursor sits at design coord
+ * (`startStitchXMm`, 0); subsequent user segments encode normally
+ * with `planFoot`'s `initialCursorXRaw` set to that position.
+ */
+export function prependStartFrames(startXMm: number, startStitchXMm: number): Stitch[] {
+  const dxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
+  return [
+    { kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: startXMm },
+    {
+      kind: 'needle',
+      x: startStitchXMm,
+      y: 0,
+      dxRaw,
+      dyRaw: 0,
+      sourceIndex: -1,
+      carriageXMm: startXMm,
+    },
+  ];
 }
 
 function computeGroupedRecords(
@@ -93,6 +123,7 @@ function computeGroupedRecords(
   foot: Foot,
   opts: PlanFootOptions,
   startXMm: number,
+  startStitchXMm: number,
 ): (readonly PlannedRecord[] | null)[] {
   const byId = new Map<string, Point>();
   for (const p of points) byId.set(p.id, p);
@@ -111,13 +142,13 @@ function computeGroupedRecords(
     });
   });
 
-  // planFoot operates in cursor-relative coords (cursor starts at 0,
-  // accumulating segment deltas). The CARRIAGE's chain-anchor-relative
-  // start is `startXMm`, so the slot test runs against that offset —
-  // imported binaries with a non-zero xElem will have their slot
-  // positioned off-centre at design start.
+  // planFoot's cursor enters the user-segment loop at the **Start
+  // Stitch** position (the cursor where the firmware lands the first
+  // needle drop). The carriage starts at the **Carriage Start**.
+  // Slot decisions run against the lag between the two.
   const grouped = planFootGroupedBySegment(foot, deltas, {
     ...opts,
+    initialCursorXRaw: Math.round(startStitchXMm * X_UNITS_PER_MM),
     initialCarriageXRaw: Math.round(startXMm * X_UNITS_PER_MM),
   });
   if (!grouped.ok) {

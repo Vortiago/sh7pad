@@ -239,11 +239,12 @@ describe('renderEditorScene — manual mode', () => {
     const seq = sequenceFromProject(project);
     const svg = newSvg();
     renderEditorScene(svg, project, view(project), null, null, seq);
-    // 4 stitches in the sequence (start + 3) → 3 connecting line segments.
-    expect(svg.querySelectorAll('line.ed-manual-segment').length).toBe(3);
+    // 5 stitches in the sequence (start + Start Stitch + 3 user) → 4
+    // connecting line segments.
+    expect(svg.querySelectorAll('line.ed-manual-segment').length).toBe(4);
   });
 
-  it('renders one ed-manual-marker per non-start manual stitch', () => {
+  it('renders one ed-manual-marker per non-start stitch (including the Start Stitch)', () => {
     const project = manualS([
       { kind: 'needle', x: 1, y: 1 },
       { kind: 'needle', x: 2, y: 2 },
@@ -252,15 +253,17 @@ describe('renderEditorScene — manual mode', () => {
     const seq = sequenceFromProject(project);
     const svg = newSvg();
     renderEditorScene(svg, project, view(project), null, null, seq);
-    expect(svg.querySelectorAll('g.ed-manual-marker').length).toBe(3);
+    expect(svg.querySelectorAll('g.ed-manual-marker').length).toBe(4);
     // Markers carry a per-stitch index for hit-testing / future selection.
     expect(svg.querySelector('g.ed-manual-marker[data-manual-idx="0"]')).not.toBeNull();
     expect(svg.querySelector('g.ed-manual-marker[data-manual-idx="1"]')).not.toBeNull();
     expect(svg.querySelector('g.ed-manual-marker[data-manual-idx="2"]')).not.toBeNull();
+    expect(svg.querySelector('g.ed-manual-marker[data-manual-idx="3"]')).not.toBeNull();
   });
 
   it('renders jump segments with class kind-jump and needle segments with class kind-needle', () => {
-    // [start → needle@(1,1)] [needle → jump@(2,1)] [jump → needle@(2.5,2)]
+    // Sequence: [start, Start Stitch needle, user-needle@(1,1), user-jump@(2,1), user-needle@(2.5,2)]
+    // → 4 connecting lines, classes follow destination.
     const project = manualS([
       { kind: 'needle', x: 1, y: 1 },
       { kind: 'jump',   x: 2, y: 1 },
@@ -270,11 +273,10 @@ describe('renderEditorScene — manual mode', () => {
     const svg = newSvg();
     renderEditorScene(svg, project, view(project), null, null, seq);
     const segs = Array.from(svg.querySelectorAll('line.ed-manual-segment'));
-    // Each segment's class reflects the *destination* stitch's kind, since
-    // the line is drawn from prev → cur.
-    expect(segs[0]?.classList.contains('kind-needle')).toBe(true);
-    expect(segs[1]?.classList.contains('kind-jump')).toBe(true);
-    expect(segs[2]?.classList.contains('kind-needle')).toBe(true);
+    expect(segs[0]?.classList.contains('kind-needle')).toBe(true); // start → Start Stitch
+    expect(segs[1]?.classList.contains('kind-needle')).toBe(true); // Start Stitch → user-needle
+    expect(segs[2]?.classList.contains('kind-jump')).toBe(true);
+    expect(segs[3]?.classList.contains('kind-needle')).toBe(true);
   });
 
   it('does not render design-mode segment lines for a manual project (defensive)', () => {
@@ -362,30 +364,33 @@ describe('renderEditorScene — live needle window overlay', () => {
 
   // Y-cap (firmware envelope |dy| ≤ 4 mm per record). The live window must
   // be a 2D box, not a full-hoop band, so the user can see the Y reach.
+  // The Start Stitch is always at Y=0; to position the running needle
+  // elsewhere we inject a manual stitch directly (bypassing the dy=4mm
+  // validator) so a single test can position the needle anywhere.
   it('clips the band height to ±STITCH_DY_MAX_MM (4 mm) around the current needle Y', () => {
-    // Start anchor at y=10 in a manual project → frame.needleYMm = 10.
-    let p = newProject('M', { mode: 'manual', suggestedFoot: 'S' });
-    p = { ...p, points: [{ id: 'start', x: 0, y: 10 }] };
+    const p: Project = {
+      ...newProject('M', { mode: 'manual', suggestedFoot: 'S' }),
+      manualStitches: [{ kind: 'needle', x: 0, y: 10, dxRaw: 0, dyRaw: 120 }],
+    };
     const seq = sequenceFromProject(p);
     const v = view(p);
     const svg = newSvg();
     renderEditorScene(svg, p, v, null, null, seq, { tool: 'add', activeStitch: 'needle' });
     const band = svg.querySelector('rect.ed-needle-window')!;
-    // Window in hoop space: [yMin=6, yMax=14] → 8 mm tall.
     expect(Number(band.getAttribute('height'))).toBeCloseTo(8 * v.zoom);
-    // y attribute is the top of the window in screen space: offsetY + 6 * zoom.
     expect(Number(band.getAttribute('y'))).toBeCloseTo(v.offsetY + 6 * v.zoom);
   });
 
   it('clamps the band to the hoop floor near the top', () => {
-    let p = newProject('M', { mode: 'manual', suggestedFoot: 'S' });
-    p = { ...p, points: [{ id: 'start', x: 0, y: 2 }] };
+    const p: Project = {
+      ...newProject('M', { mode: 'manual', suggestedFoot: 'S' }),
+      manualStitches: [{ kind: 'needle', x: 0, y: 2, dxRaw: 0, dyRaw: 24 }],
+    };
     const seq = sequenceFromProject(p);
     const v = view(p);
     const svg = newSvg();
     renderEditorScene(svg, p, v, null, null, seq, { tool: 'add', activeStitch: 'needle' });
     const band = svg.querySelector('rect.ed-needle-window')!;
-    // Window: [yMin=0, yMax=6] → 6 mm tall, top at offsetY.
     expect(Number(band.getAttribute('y'))).toBeCloseTo(v.offsetY);
     expect(Number(band.getAttribute('height'))).toBeCloseTo(6 * v.zoom);
   });

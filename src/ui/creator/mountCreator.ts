@@ -60,6 +60,11 @@ export async function mountCreator(
 
   const projectStore = createProjectStore(initialProjects[0]!);
 
+  // Expose the project store to window for E2E tests that need to
+  // mutate state without click→pixel→mm math. Harmless in production
+  // (no sensitive state, just the active project's plain JSON shape).
+  (globalThis as unknown as { __sh7pad_store?: typeof projectStore }).__sh7pad_store = projectStore;
+
   // Seed layoutState from sentinel storage (collapse flags persist for
   // first-paint restoration) and from matchMedia (initial layout
   // bucket). The responsive controller updates `layout` thereafter.

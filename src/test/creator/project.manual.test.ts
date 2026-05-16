@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { newProject, lockProjectInvariants, migrateProject } from '../../creator/project.js';
+import { NEEDLE_SLOT_HALF_MM } from '../../creator/foot.js';
 import { createProjectStore } from '../../creator/projectStore.js';
 import {
   addManualSatinSegment,
@@ -70,22 +71,47 @@ describe('lockProjectInvariants', () => {
     expect(locked.suggestedFoot).toBe('B');
   });
 
-  // startXMm lock — per-mode rule (see project.ts:isStartLocked):
-  //   design mode → always free (the encoder re-plans on every render)
-  //   manual mode → locked once at least one manual stitch exists
-  // Imported binaries set this from xElem; subsequent UI drags pass
-  // through the invariant before reaching the store.
-  it('design mode: startXMm stays free even after segments are added', () => {
+  // **Carriage Start** / **Start Stitch** rules — per-mode lock + the
+  // eye constraint, plus drag-along:
+  //   design mode → freely re-tunable. Dragging the Carriage Start
+  //     drags the Start Stitch along by the same delta so they stay
+  //     inside the Eye relative to each other.
+  //   manual mode → same drag-along, additionally locked once at
+  //     least one user stitch exists (Start Lock).
+  // Imported binaries set startXMm from xElem and the migration
+  // clamps any legacy out-of-slot value down on load.
+  it('design mode: carriage drag drags Start Stitch along', () => {
     const prev: Project = { ...newProject('A', { idGen }), startXMm: 1 };
     const seg: Segment = { id: 'g', from: 'a', to: 'b', type: 'straight' };
+    // Foot S reach is ±27.25; 20mm is within reach, so the carriage
+    // sticks. The Start Stitch (initially at 0) gets dragged along by
+    // +19 so the eye-relative offset (-1) is preserved.
     const next: Project = { ...prev, segments: [seg], startXMm: 20 };
-    expect(lockProjectInvariants(prev, next).startXMm).toBe(20);
+    const result = lockProjectInvariants(prev, next);
+    expect(result.startXMm).toBe(20);
+    expect(result.startStitch?.x).toBe(19);
   });
 
-  it('manual mode with no stitches: startXMm stays free', () => {
+  it('manual mode with no stitches: carriage drag drags Start Stitch along', () => {
     const prev = newProject('A', { idGen, mode: 'manual', suggestedFoot: 'S' });
+    // 5mm carriage move from 0; Start Stitch tags along by the same
+    // delta (5) so the eye-relative offset (0) is preserved.
     const next: Project = { ...prev, startXMm: 5 };
-    expect(lockProjectInvariants(prev, next).startXMm).toBe(5);
+    const result = lockProjectInvariants(prev, next);
+    expect(result.startXMm).toBe(5);
+    expect(result.startStitch?.x).toBe(5);
+  });
+
+  it('Start Stitch drag is hard-stopped at the Eye edge', () => {
+    const prev = newProject('A', { idGen });
+    // Try to slide the Start Stitch to +10 with the carriage held
+    // at 0 — only the stitch field changed, so drag-along is NOT
+    // triggered; instead the stitch is hard-stopped at +3.5 (the
+    // eye edge relative to the carriage at 0).
+    const next: Project = { ...prev, startStitch: { x: 10 } };
+    const result = lockProjectInvariants(prev, next);
+    expect(result.startXMm).toBe(0);
+    expect(result.startStitch?.x).toBe(NEEDLE_SLOT_HALF_MM);
   });
 
   it('manual mode after a stitch is placed: reverts startXMm to prev value', () => {

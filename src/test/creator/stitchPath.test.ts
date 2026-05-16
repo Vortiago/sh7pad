@@ -27,21 +27,24 @@ describe('encodeSegments (Foot B / non-side-motion path)', () => {
   });
 
   it('a 6 mm Foot B segment walks the carriage (1 leading needle + jumps)', () => {
-    // Under the unified carriage planner, Foot B walks the carriage
-    // exactly like Foot S — its narrower ±4.5 mm reach just bounds it
-    // sooner. A 6 mm rightward segment lands one Phase-A needle at the
-    // 3.5 mm slot edge, then Phase B walks 2.5 mm in 3 pieces (two 1 mm
-    // jumps + one 0.5 mm tail) bringing the carriage to 2.5 mm (well
-    // inside Foot B's ±4.5 mm reach).
+    // Sequence layout: seq[0] = 'start' marker, seq[1] = **Start
+    // Stitch** needle (a (0, 0) no-op needle drop), seq[2..] = user
+    // records. Under the unified carriage planner, Foot B walks the
+    // carriage exactly like Foot S — its narrower ±4.5 mm reach just
+    // bounds it sooner. A 6 mm rightward segment lands one Phase-A
+    // needle at the 3.5 mm slot edge, then Phase B walks 2.5 mm in 3
+    // pieces (two 1 mm jumps + one 0.5 mm tail).
     const points = [pt('a', 0, 0), pt('b', 6, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const seq = encodeSegments(points, segments, FOOT_B);
-    expect(seq).toHaveLength(5); // start + 1 Phase A + 3 walks
+    expect(seq).toHaveLength(6); // start + start-stitch + 1 Phase A + 3 walks
     expect(seq[0]).toMatchObject({ x: 0, y: 0, kind: 'start' });
-    expect(seq[1]?.kind).toBe('needle');
-    expect(seq[1]?.x).toBeCloseTo(3.5);
-    for (let i = 2; i <= 4; i++) expect(seq[i]?.kind).toBe('jump');
-    expect(seq[4]?.x).toBeCloseTo(6);
+    expect(seq[1]?.kind).toBe('needle'); // Start Stitch
+    expect(seq[1]?.x).toBeCloseTo(0);
+    expect(seq[2]?.kind).toBe('needle');
+    expect(seq[2]?.x).toBeCloseTo(3.5);
+    for (let i = 3; i <= 5; i++) expect(seq[i]?.kind).toBe('jump');
+    expect(seq[5]?.x).toBeCloseTo(6);
   });
 
   it('a Foot B segment that would walk the carriage past ±4.5 mm reach throws FootEncodeException', () => {
@@ -85,7 +88,11 @@ describe('encodeSegments (Foot B / non-side-motion path)', () => {
       widthStart: 4, widthEnd: 4, density: 1,
     }];
     const seq = encodeSegments(points, segments, FOOT_B);
-    const satinStitches = seq.filter((s) => s.kind !== 'start');
+    // Drop the 'start' marker AND the leading Start Stitch (sourceIndex=-1
+    // needle at (0, 0)) so we compare against the actual satin geometry.
+    const satinStitches = seq.filter(
+      (s) => s.kind !== 'start' && s.sourceIndex !== -1,
+    );
     const first = satinStitches[0]!;
     const last = satinStitches[satinStitches.length - 1]!;
     expect(first.x).toBeLessThan(0);
@@ -140,32 +147,33 @@ describe('encodeSegments — Foot S preview matches the planner record sequence'
     const points = [pt('a', 0, 0), pt('b', 20, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const stitches = encodeSegments(points, segments, FOOT_S);
-    // start + 1 Phase A short + 17 Phase B pieces. (132 raw remaining
-    // after Phase A; n = ceil(132/8) = 17, with the last piece carrying
-    // the 4-raw remainder.)
-    expect(stitches).toHaveLength(19);
+    // start + Start Stitch needle + 1 Phase A short + 17 Phase B pieces.
+    // (132 raw remaining after Phase A; n = ceil(132/8) = 17, with the
+    // last piece carrying the 4-raw remainder.)
+    expect(stitches).toHaveLength(20);
     expect(stitches[0]).toMatchObject({ x: 0, y: 0, kind: 'start' });
+    expect(stitches[1]?.kind).toBe('needle'); // Start Stitch at (0, 0)
     // Phase A short reaches the 3.5 mm slot edge in a single record.
-    expect(stitches[1]?.kind).toBe('needle');
-    expect(stitches[1]?.x).toBeCloseTo(3.5, 5);
-    expect(stitches[1]?.y).toBeCloseTo(0, 5);
+    expect(stitches[2]?.kind).toBe('needle');
+    expect(stitches[2]?.x).toBeCloseTo(3.5, 5);
+    expect(stitches[2]?.y).toBeCloseTo(0, 5);
     // Phase B: 16 jumps of 1 mm each (cursor 4.5, 5.5, …, 19.5) plus a
     // final 0.5 mm jump bringing the cursor to 20.
-    for (let i = 2; i <= 17; i++) {
+    for (let i = 3; i <= 18; i++) {
       expect(stitches[i]?.kind).toBe('jump');
-      expect(stitches[i]?.x).toBeCloseTo(3.5 + (i - 1), 5);
+      expect(stitches[i]?.x).toBeCloseTo(3.5 + (i - 2), 5);
       expect(stitches[i]?.y).toBeCloseTo(0, 5);
     }
-    expect(stitches[18]?.kind).toBe('jump');
-    expect(stitches[18]?.x).toBeCloseTo(20, 5);
+    expect(stitches[19]?.kind).toBe('jump');
+    expect(stitches[19]?.x).toBeCloseTo(20, 5);
   });
 
   it('a small in-window segment under Foot S emits one stitch at the endpoint', () => {
     const points = [pt('a', 0, 0), pt('b', 0.5, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const stitches = encodeSegments(points, segments, FOOT_S);
-    expect(stitches).toHaveLength(2);
-    expect(stitches[1]?.x).toBeCloseTo(0.5, 5);
+    expect(stitches).toHaveLength(3); // start + Start Stitch + 1 user
+    expect(stitches[2]?.x).toBeCloseTo(0.5, 5);
   });
 
   it('a 3 mm in-window horizontal segment under Foot S is a single needle (no v1-style splitting)', () => {
@@ -173,9 +181,9 @@ describe('encodeSegments — Foot S preview matches the planner record sequence'
     const points = [pt('a', 0, 0), pt('b', 3, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const stitches = encodeSegments(points, segments, FOOT_S);
-    expect(stitches).toHaveLength(2);
-    expect(stitches[1]?.x).toBeCloseTo(3, 5);
-    expect(stitches[1]?.kind).toBe('needle');
+    expect(stitches).toHaveLength(3);
+    expect(stitches[2]?.x).toBeCloseTo(3, 5);
+    expect(stitches[2]?.kind).toBe('needle');
   });
 
   it('a pure-Y segment under Foot S subdivides for the per-record dy cap (12 mm dy → 3 needles)', () => {
@@ -185,9 +193,9 @@ describe('encodeSegments — Foot S preview matches the planner record sequence'
     const points = [pt('a', 0, 0), pt('b', 0, 12)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const stitches = encodeSegments(points, segments, FOOT_S);
-    expect(stitches).toHaveLength(4); // start + 3 Y-cap pieces
-    expect(stitches[3]?.y).toBeCloseTo(12, 5);
-    for (let i = 1; i <= 3; i++) expect(stitches[i]?.kind).toBe('needle');
+    expect(stitches).toHaveLength(5); // start + Start Stitch + 3 Y-cap pieces
+    expect(stitches[4]?.y).toBeCloseTo(12, 5);
+    for (let i = 1; i <= 4; i++) expect(stitches[i]?.kind).toBe('needle');
   });
 
   it('a diagonal segment under Foot S coalesces Phase A then walks with proportional Y', () => {
@@ -195,75 +203,67 @@ describe('encodeSegments — Foot S preview matches the planner record sequence'
     // (28 raw / 3.5 mm) with proportional dy = round(60·28/80) = 21 raw
     // (1.75 mm). Phase B walks the remaining 52 raw in 7 pieces (six of
     // 8 raw + one of 4 raw), with dy distributed cumulatively along the
-    // segment line. Stitches lie on the segment y = x/2 because the
-    // planner targets the line at each piece's endpoint.
+    // segment line.
     const points = [pt('a', 0, 0), pt('b', 10, 5)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const stitches = encodeSegments(points, segments, FOOT_S);
-    expect(stitches).toHaveLength(9); // start + 1 Phase A + 7 Phase B
-    expect(stitches[1]?.x).toBeCloseTo(3.5, 5);
-    expect(stitches[1]?.y).toBeCloseTo(1.75, 5);
-    // Each Phase B piece's (x, y) lands on the segment line y = x / 2.
-    for (let i = 2; i <= 8; i++) {
+    expect(stitches).toHaveLength(10); // start + Start Stitch + 1 Phase A + 7 Phase B
+    expect(stitches[2]?.x).toBeCloseTo(3.5, 5);
+    expect(stitches[2]?.y).toBeCloseTo(1.75, 5);
+    for (let i = 3; i <= 9; i++) {
       const x = stitches[i]!.x;
       expect(stitches[i]?.y).toBeCloseTo(x / 2, 1);
     }
-    expect(stitches[8]?.x).toBeCloseTo(10, 5);
-    expect(stitches[8]?.y).toBeCloseTo(5, 5);
+    expect(stitches[9]?.x).toBeCloseTo(10, 5);
+    expect(stitches[9]?.y).toBeCloseTo(5, 5);
   });
 
   it('preserves negative dx direction', () => {
     const points = [pt('a', 10, 0), pt('b', 0, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const stitches = encodeSegments(points, segments, FOOT_S);
-    expect(stitches).toHaveLength(9); // start + 1 Phase A + 7 walks
+    expect(stitches).toHaveLength(10); // start + Start Stitch + 1 Phase A + 7 walks
     // Phase A short pushes the needle 3.5 mm leftward to the slot edge.
-    expect(stitches[1]?.x).toBeCloseTo(6.5, 5);
-    // Walks advance the carriage leftward: 6 of 1 mm + 1 of 0.5 mm.
-    for (let i = 2; i <= 7; i++) {
-      expect(stitches[i]?.x).toBeCloseTo(6.5 - (i - 1), 5); // 5.5, 4.5, …, 0.5
+    expect(stitches[2]?.x).toBeCloseTo(6.5, 5);
+    for (let i = 3; i <= 8; i++) {
+      expect(stitches[i]?.x).toBeCloseTo(6.5 - (i - 2), 5);
     }
-    expect(stitches[8]?.x).toBeCloseTo(0, 5);
+    expect(stitches[9]?.x).toBeCloseTo(0, 5);
   });
 
   it('Foot S stitch kinds match the planner (in-window=needle, busted segment = leading needle + trailing jumps)', () => {
     const inWindow: Point[] = [pt('a', 0, 0), pt('b', 3, 0)];
     const segIn: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const inSeq = encodeSegments(inWindow, segIn, FOOT_S);
-    expect(inSeq).toHaveLength(2);
-    expect(inSeq[1]?.kind).toBe('needle');
+    expect(inSeq).toHaveLength(3);
+    expect(inSeq[2]?.kind).toBe('needle');
 
     const busts: Point[] = [pt('a', 0, 0), pt('b', 10, 0)];
     const segBust: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const bustSeq = encodeSegments(busts, segBust, FOOT_S);
-    expect(bustSeq).toHaveLength(9);
-    // Piece 1: one Phase-A needle reaching the slot edge.
-    // Pieces 2..8: walks of 1 mm each.
-    expect(bustSeq[1]?.kind).toBe('needle');
-    for (let i = 2; i <= 8; i++) expect(bustSeq[i]?.kind).toBe('jump');
+    expect(bustSeq).toHaveLength(10);
+    expect(bustSeq[2]?.kind).toBe('needle');
+    for (let i = 3; i <= 9; i++) expect(bustSeq[i]?.kind).toBe('jump');
   });
 
   it('Foot S carriage (via trackFoot) stays planted under Phase A, then advances per jump piece', () => {
     const points = [pt('a', 0, 0), pt('b', 10, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const seq = encodeSegments(points, segments, FOOT_S);
-    expect(seq).toHaveLength(9);
+    expect(seq).toHaveLength(10);
     const track = trackFoot(seq);
     // Phase A: needle reaches the slot edge, carriage planted at 0.
-    expect(track[1]?.carriageXMm).toBeCloseTo(0, 5);
-    // Phase B walks: 6 pieces of 1 mm + 1 of 0.5 mm = 6.5 mm carriage walk.
-    for (let i = 2; i <= 7; i++) {
-      expect(track[i]?.carriageXMm).toBeCloseTo(i - 1, 5);
+    expect(track[2]?.carriageXMm).toBeCloseTo(0, 5);
+    for (let i = 3; i <= 8; i++) {
+      expect(track[i]?.carriageXMm).toBeCloseTo(i - 2, 5);
     }
-    expect(track[8]?.carriageXMm).toBeCloseTo(6.5, 5);
+    expect(track[9]?.carriageXMm).toBeCloseTo(6.5, 5);
 
-    // 3 mm fits inside the slot half (3.5 mm) → single needle,
-    // carriage stays planted at 0.
     const planted = [pt('a', 0, 0), pt('b', 3, 0)];
     const segPlanted: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const plantedSeq = encodeSegments(planted, segPlanted, FOOT_S);
     const plantedTrack = trackFoot(plantedSeq);
-    expect(plantedTrack[1]?.carriageXMm).toBeCloseTo(0, 5);
+    expect(plantedTrack[2]?.carriageXMm).toBeCloseTo(0, 5);
   });
 
   it('Foot S stitch positions equal planner record end positions exactly', () => {
@@ -281,37 +281,35 @@ describe('encodeSegments — Foot S preview matches the planner record sequence'
     expect(groupedResult.ok).toBe(true);
     if (!groupedResult.ok) throw new Error('planner unexpectedly refused');
     const records = groupedResult.buckets[0]!;
-    expect(seq).toHaveLength(records.length + 1);
+    // seq = [start, Start Stitch needle, ...user records]
+    expect(seq).toHaveLength(records.length + 2);
     const track = trackFoot(seq);
     for (let i = 0; i < records.length; i++) {
-      const s = seq[i + 1]!;
+      const s = seq[i + 2]!;
       expect(s.x).toBeCloseTo(records[i]!.endXMm, 9);
       expect(s.y).toBeCloseTo(records[i]!.endYMm, 9);
-      expect(track[i + 1]?.carriageXMm).toBeCloseTo(records[i]!.carriageXMm, 9);
+      expect(track[i + 2]?.carriageXMm).toBeCloseTo(records[i]!.carriageXMm, 9);
       const expectedKind = records[i]!.kind === 'jump' ? 'jump' : 'needle';
       expect(s.kind).toBe(expectedKind);
     }
   });
 
   it('Foot B carriage walks just like Foot S — only its reach bound differs', () => {
-    // 6 mm rightward under Foot B: one Phase-A needle to the 3.5 mm slot
-    // edge keeps the carriage planted, then 3 jumps walk it 2.5 mm to
-    // the segment end — all within Foot B's ±4.5 mm reach. The carriage
-    // advances on jumps, identically to Foot S; the only difference is
-    // when reach is exceeded.
+    // seq layout: [start, Start Stitch, Phase A needle, 3 walks].
     const points = [pt('a', 0, 0), pt('b', 6, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const seq = encodeSegments(points, segments, FOOT_B);
     const track = trackFoot(seq);
-    // start + Phase A needle: carriage planted at 0.
+    // Carriage stays at 0 through start + Start Stitch + Phase A needle.
     expect(track[0]?.carriageXMm).toBeCloseTo(0, 5);
     expect(track[1]?.carriageXMm).toBeCloseTo(0, 5);
+    expect(track[2]?.carriageXMm).toBeCloseTo(0, 5);
     // 3 Phase-B pieces walk the carriage 1, 2, 2.5 mm.
-    expect(track[2]?.carriageXMm).toBeCloseTo(1, 5);
-    expect(track[3]?.carriageXMm).toBeCloseTo(2, 5);
-    expect(track[4]?.carriageXMm).toBeCloseTo(2.5, 5);
+    expect(track[3]?.carriageXMm).toBeCloseTo(1, 5);
+    expect(track[4]?.carriageXMm).toBeCloseTo(2, 5);
+    expect(track[5]?.carriageXMm).toBeCloseTo(2.5, 5);
     // Final carriage X stays inside Foot B's ±4.5 mm reach.
-    expect(Math.abs(track[4]!.carriageXMm)).toBeLessThanOrEqual(4.5);
+    expect(Math.abs(track[5]!.carriageXMm)).toBeLessThanOrEqual(4.5);
   });
 
   it('start stitch is emitted regardless of foot', () => {
@@ -323,15 +321,14 @@ describe('encodeSegments — Foot S preview matches the planner record sequence'
 
   it('cache invalidates when foot changes (segment that fits both feet)', () => {
     // 6 mm wide fits both Foot B (carriage walks to 3 mm ≤ 4.5 mm reach)
-    // and Foot S. Both should produce the same record sequence — the only
-    // per-foot difference is reach, and neither foot busts it here.
+    // and Foot S. Sequences are: start + Start Stitch + Phase A + 3 walks = 6.
     const points = [pt('a', 0, 0), pt('b', 6, 0)];
     const segments: Segment[] = [{ id: 's1', from: 'a', to: 'b', type: 'straight' }];
     const footS = encodeSegments(points, segments, FOOT_S);
     const footB = encodeSegments(points, segments, FOOT_B);
-    expect(footS.length).toBe(5);
-    expect(footB.length).toBe(5);
+    expect(footS.length).toBe(6);
+    expect(footB.length).toBe(6);
     const footSAgain = encodeSegments(points, segments, FOOT_S);
-    expect(footSAgain.length).toBe(5);
+    expect(footSAgain.length).toBe(6);
   });
 });

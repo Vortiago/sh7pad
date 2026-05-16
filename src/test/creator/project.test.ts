@@ -63,21 +63,22 @@ describe('newProject', () => {
 });
 
 describe('lockFirstPoint', () => {
-  it('forces points[0].x to 0 even if it is non-zero', () => {
+  it('syncs points[0] to the canonical Start Stitch (x mirror, y=0)', () => {
     const p: Project = {
       ...newProject('X', { idGen: seq }),
+      startStitch: { x: 2 },
       points: [
         { id: 'a', x: 5, y: 10 },
         { id: 'b', x: 7, y: 20 },
       ],
     };
     const out = lockFirstPoint(p);
-    expect(out.points[0]?.x).toBe(0);
-    expect(out.points[0]?.y).toBe(10); // y unchanged
+    expect(out.points[0]?.x).toBe(2); // mirrors startStitch.x
+    expect(out.points[0]?.y).toBe(0); // y forced to 0
     expect(out.points[1]).toEqual(p.points[1]); // others unchanged
   });
 
-  it('is a no-op when points[0].x is already 0', () => {
+  it('is a no-op when points[0] already mirrors the Start Stitch', () => {
     const p = newProject('X', { idGen: seq });
     const out = lockFirstPoint(p);
     expect(out.points[0]).toEqual(p.points[0]);
