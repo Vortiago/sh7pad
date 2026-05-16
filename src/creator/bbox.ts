@@ -13,16 +13,43 @@ export interface Bbox {
 
 export const EMPTY_VIEW_BBOX: Bbox = { minX: -8, maxX: 8, minY: 0, maxY: 20 };
 
-export function stitchesBbox(stitches: readonly Stitch[]): Bbox {
-  if (stitches.length === 0) return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+/**
+ * Tight axis-aligned bbox over an iterable of points. Returns null when
+ * the iterable is empty — callers that need a sentinel for empty input
+ * supply their own (see {@link stitchesBbox}, which uses {0,0,0,0}, and
+ * {@link xUmYumFromBbox}, which returns zero dimensions).
+ */
+export function boundsOf(points: Iterable<{ x: number; y: number }>): Bbox | null {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const s of stitches) {
-    if (s.x < minX) minX = s.x;
-    if (s.x > maxX) maxX = s.x;
-    if (s.y < minY) minY = s.y;
-    if (s.y > maxY) maxY = s.y;
+  let any = false;
+  for (const p of points) {
+    any = true;
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
   }
-  return { minX, maxX, minY, maxY };
+  return any ? { minX, maxX, minY, maxY } : null;
+}
+
+/**
+ * X/Y span of a bbox, scaled and rounded to integer units. Used by the
+ * binary exporter, which records dimensions in µm (default 1000 µm/mm).
+ */
+export function xUmYumFromBbox(
+  bbox: Bbox | null,
+  scaleX = 1000,
+  scaleY = 1000,
+): { xUm: number; yUm: number } {
+  if (!bbox) return { xUm: 0, yUm: 0 };
+  return {
+    xUm: Math.round((bbox.maxX - bbox.minX) * scaleX),
+    yUm: Math.round((bbox.maxY - bbox.minY) * scaleY),
+  };
+}
+
+export function stitchesBbox(stitches: readonly Stitch[]): Bbox {
+  return boundsOf(stitches) ?? { minX: 0, maxX: 0, minY: 0, maxY: 0 };
 }
 
 /**

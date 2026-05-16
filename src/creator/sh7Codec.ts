@@ -10,6 +10,7 @@ import { writeBE16, writeBE32, writeUtf16BE } from '../parser/bytes.js';
 import type { SatinPayload } from '../parser/parseSatin.js';
 import { X_UNITS_PER_MM, Y_UNITS_PER_MM } from '../parser/units.js';
 import type { ConeEdges } from '../shared/satinShape.js';
+import { boundsOf } from './bbox.js';
 import {
   encodeJumpRecord,
   encodeShortRecord,
@@ -40,26 +41,10 @@ import {
   MULTI_O6_BLOCK_TEMPLATE,
   SINGLETON_O6_BLOCK_TEMPLATE,
 } from './sh7BinaryExportConstants.js';
-import type {
-  JumpStitchInput,
-  ShortStitchInput,
-  StitchInput,
-} from './pipeline/multiBlockEmit.js';
+import type { StitchInput } from './pipeline/multiBlockEmit.js';
 
 // ---------------------------------------------------------------------------
 // Stitch records
-
-export function encodeShortStitch(stitch: ShortStitchInput): Uint8Array {
-  // Permissive shim for tests / probes that bypass the pipeline. The
-  // pipeline's promoteToShortOrJump never lets dx = -128 reach this path,
-  // so the strict recordCodec check is the right guarantee for production
-  // emissions; existing fixtures don't hit it either.
-  return encodeShortRecord({ dx: stitch.dxRaw, dy: stitch.dyRaw });
-}
-
-export function encodeJumpStitch(stitch: JumpStitchInput): Uint8Array {
-  return encodeJumpRecord({ dx: stitch.dxRaw, dy: stitch.dyRaw });
-}
 
 export function encodeStitches(stitches: readonly StitchInput[]): Uint8Array {
   const records: Uint8Array[] = [];
@@ -99,13 +84,15 @@ const SATIN_UM_PER_MM_X = 1000;
 const SATIN_UM_PER_MM_Y = (Y_UNITS_PER_MM * 1000) / X_UNITS_PER_MM;
 
 export function coneEdgesToSatinPayload(edges: ConeEdges): SatinPayload {
-  const all = [...edges.leftPoints, ...edges.rightPoints];
-  let minX = Infinity;
-  let minY = Infinity;
-  for (const p of all) {
-    if (p.x < minX) minX = p.x;
-    if (p.y < minY) minY = p.y;
-  }
+  // A cone with no points is not a real export-time shape, but guard
+  // anyway: fall back to a {0, 0} origin so the payload still encodes
+  // (downstream length-prefix machinery handles the empty-list shape).
+  const bbox = boundsOf((function* () {
+    for (const p of edges.leftPoints) yield p;
+    for (const p of edges.rightPoints) yield p;
+  })());
+  const minX = bbox?.minX ?? 0;
+  const minY = bbox?.minY ?? 0;
   const toLocalUm = (p: { x: number; y: number }) => ({
     x: Math.round((p.x - minX) * SATIN_UM_PER_MM_X),
     y: Math.round((p.y - minY) * SATIN_UM_PER_MM_Y),

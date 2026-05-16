@@ -35,6 +35,7 @@ import {
 } from '../../shared/satinShape.js';
 import { X_UNITS_PER_MM, Y_UNITS_PER_MM } from '../../parser/units.js';
 import { satinStitches } from '../../shared/satinShape.js';
+import { boundsOf } from '../bbox.js';
 import type { Foot } from '../foot.js';
 import {
   FootEncodeException,
@@ -417,14 +418,10 @@ function originXY(
   initialChain: { x: number; y: number },
   points: Iterable<{ x: number; y: number }>,
 ): { minXmm: number; minYmm: number } {
-  let minXmm = Infinity, minYmm = Infinity;
-  for (const p of points) {
-    if (p.x < minXmm) minXmm = p.x;
-    if (p.y < minYmm) minYmm = p.y;
-  }
-  if (!Number.isFinite(minXmm)) minXmm = initialChain.x;
-  if (!Number.isFinite(minYmm)) minYmm = initialChain.y;
-  return { minXmm, minYmm };
+  const bbox = boundsOf(points);
+  return bbox
+    ? { minXmm: bbox.minX, minYmm: bbox.minY }
+    : { minXmm: initialChain.x, minYmm: initialChain.y };
 }
 
 /**
