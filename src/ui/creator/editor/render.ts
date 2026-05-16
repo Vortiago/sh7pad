@@ -35,6 +35,7 @@ import {
   renderManualThread,
   renderPoint,
   renderSegment,
+  renderStartMarker,
   type HoverHoop,
 } from './scene.js';
 
@@ -224,52 +225,19 @@ export function renderEditorScene(
 
   // 5c. Start marker — drawn as a presser-foot shape matching the
   // preview's visual language so the user immediately recognises that
-  // this is where the carriage sits when the design loads. The body
-  // rect + inner slot rect mirror renderFoot() in sceneMotif.ts; the
-  // hover <title> doubles as a built-in tooltip ("Carriage start
-  // position…"). Drag handling lives in editor/interact.ts via
-  // data-role="start-marker"; the store invariant (lockStartXMm)
-  // silently reverts attempted drags once the start is locked.
-  const startX = startXMmOf(project);
-  const startLocked = isStartLocked(project);
-  const chainAnchorY = project.points[0]?.y ?? 0;
-  const startPx = px(startX, chainAnchorY);
-  const startG = svgEl('g', {
-    'data-role': 'start-marker',
-    'data-locked': startLocked ? 'true' : 'false',
-    transform: `translate(${startPx.x} ${startPx.y})`,
-  }, ['ed-start-marker', ...(startLocked ? ['ed-start-marker-locked'] : [])]);
-  // Native browser tooltip on hover, and the same string is exposed to
-  // screen readers via `<title>` (the SVG accessibility convention).
-  const startTooltip = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-  startTooltip.textContent = startLocked
-    ? `Carriage start: X = ${startX.toFixed(2)} mm. Locked — manual-mode designs freeze the start once the first stitch is placed.`
-    : `Carriage start: X = ${startX.toFixed(2)} mm. Drag to move the carriage's design-start position.`;
-  startG.appendChild(startTooltip);
-  // Foot body + inner slot, geometry-identical to the preview foot so
-  // the icon reads the same in both modes. Scaled by editor zoom; body
-  // dimensions come from the active foot's body width (Foot S 20 mm,
-  // Foot B 16 mm) and the shared FOOT_BODY_HEIGHT_MM = 8 mm.
-  const bodyWidthMm = footWidthMmForFoot(project.suggestedFoot);
-  const bodyW = bodyWidthMm * zoom;
-  const bodyH = FOOT_BODY_HEIGHT_MM * zoom;
-  const slotW = f.needleSlotHalfMm * 2 * zoom;
-  const slotH = FOOT_SLOT_HEIGHT_MM * zoom;
-  startG.appendChild(svgEl('rect', {
-    x: -bodyW / 2,
-    y: -bodyH / 2,
-    width: bodyW,
-    height: bodyH,
-    rx: Math.min(2, bodyW / 6),
-  }, ['ed-start-body']));
-  startG.appendChild(svgEl('rect', {
-    x: -slotW / 2,
-    y: -slotH / 2,
-    width: slotW,
-    height: slotH,
-    rx: Math.min(1.5, slotW / 8),
-  }, ['ed-start-slot']));
-  svg.appendChild(startG);
+  // this is where the carriage sits when the design loads. Drag handling
+  // lives in editor/interact.ts via data-role="start-marker"; the store
+  // invariant (lockStartXMm) silently reverts attempted drags once the
+  // start is locked.
+  svg.appendChild(renderStartMarker({
+    startXMm: startXMmOf(project),
+    chainAnchorY: project.points[0]?.y ?? 0,
+    locked: isStartLocked(project),
+    bodyWidthMm: footWidthMmForFoot(project.suggestedFoot),
+    bodyHeightMm: FOOT_BODY_HEIGHT_MM,
+    slotHalfWMm: f.needleSlotHalfMm,
+    slotHeightMm: FOOT_SLOT_HEIGHT_MM,
+  }, px, zoom));
 
   // 6. Hover crosshair + target dot.
   if (hoverHoop) {
