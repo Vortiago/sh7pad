@@ -8,7 +8,7 @@ The right rail (**Stitches**) shows every segment in order. Each row has the seg
 
 - Click a row to select that segment. The row highlights and the **SEGMENT** inspector on the canvas opens for it.
 - Click the **×** at the end of a row to delete that segment.
-- The first row (**START**) is the carriage's design-start anchor; you can drag it on the canvas to shift where stitching begins.
+- The first row (**START**) represents the Start Stitch and the Carriage Start. Drag the foot icon and the green diamond on the canvas to move them; see [Start Stitch and Carriage Start](start-stitch.md).
 
 ## Edit a satin segment
 
