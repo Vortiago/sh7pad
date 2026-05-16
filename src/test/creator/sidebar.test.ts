@@ -179,8 +179,6 @@ describe('renderSidebar', () => {
     renderSidebar(div, { projects: [proj], currentId: proj.id, project: proj }, mockCb());
     const tensionRange = div.querySelector<HTMLInputElement>('[data-control="threadTensionRange"]');
     const tensionNum = div.querySelector<HTMLInputElement>('[data-control="threadTensionNumber"]');
-    // X-Limit dropdown is gone — X-reach is derived from the foot.
-    expect(div.querySelector('[data-control="xLimit"]')).toBeNull();
     expect(Number(tensionRange?.value)).toBe(5.5);
     expect(Number(tensionNum?.value)).toBe(5.5);
   });

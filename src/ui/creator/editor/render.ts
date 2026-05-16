@@ -18,24 +18,24 @@
 import './render.css';
 import { svgEl } from '../../svgDom.js';
 import { foot } from '../../../creator/foot.js';
-import { PER_RECORD_JUMP_CAP_MM, STITCH_DY_MAX_MM } from '../../../creator/sh7Limits.js';
 import { chainEndPointId, isStartLocked, startStitchOf, startXMmOf } from '../../../creator/project.js';
 import { footWidthMmForFoot } from '../preview/constants.js';
 import {
   FOOT_BODY_HEIGHT_MM,
   FOOT_SLOT_HEIGHT_MM,
 } from '../preview/scene.js';
-import { currentManualFrame } from '../../../creator/manualStitch.js';
 import type { Point, Project } from '../../../creator/types.js';
 import type { StitchSequence } from '../../../creator/pipeline/stitch.js';
 import type { Selection } from '../store/uiStore.js';
 import type { View } from './view.js';
 import { renderGrid } from './grid.js';
+import { liveWindowGeometry } from './interactMath.js';
 import {
   renderHover,
   renderManualThread,
   renderPoint,
   renderSegment,
+  renderStartMarker,
   type HoverHoop,
 } from './scene.js';
 
@@ -135,29 +135,23 @@ export function renderEditorScene(
   // tool is active. Tells the user where the next click can actually
   // land. The band slides as the carriage moves (Foot S jumps) and
   // tightens to the ±1 mm jump envelope when the Jump tool is selected.
-  // Y is clipped to ±STITCH_DY_MAX_MM around the current needle Y so the
-  // band reflects the per-record firmware envelope on both axes.
-  if (
-    project.mode === 'manual' &&
-    interaction?.tool === 'add' &&
-    (interaction.activeStitch === 'needle' || interaction.activeStitch === 'jump')
-  ) {
-    const frame = currentManualFrame(project);
-    const half =
-      interaction.activeStitch === 'jump' ? PER_RECORD_JUMP_CAP_MM : f.needleSlotHalfMm;
-    const center = interaction.activeStitch === 'jump' ? frame.needleXMm : frame.carriageXMm;
-    // Clip to the hoop halfW / hoop H so the band doesn't extend off the fabric.
-    const xMin = Math.max(-touchableHalfW, center - half);
-    const xMax = Math.min(touchableHalfW, center + half);
-    const yMin = Math.max(0, frame.needleYMm - STITCH_DY_MAX_MM);
-    const yMax = Math.min(H, frame.needleYMm + STITCH_DY_MAX_MM);
-    if (xMax > xMin && yMax > yMin) {
-      svg.appendChild(svgEl('rect', {
-        x: offsetX + xMin * zoom,
-        y: offsetY + yMin * zoom,
-        width: (xMax - xMin) * zoom,
-        height: (yMax - yMin) * zoom,
-      }, ['ed-needle-window', `kind-${interaction.activeStitch}`]));
+  // The geometry is computed in interactMath.liveWindowGeometry so the
+  // click gate (interact.ts) and this overlay cannot drift.
+  if (interaction?.tool === 'add') {
+    const geom = liveWindowGeometry(project, interaction.activeStitch);
+    if (geom) {
+      // Re-clip X to the touchable fabric (narrower than hoop halfW when
+      // carriageReach < halfW) so the band never extends off the fabric.
+      const xMin = Math.max(-touchableHalfW, geom.xMin);
+      const xMax = Math.min(touchableHalfW, geom.xMax);
+      if (xMax > xMin && geom.yMax > geom.yMin) {
+        svg.appendChild(svgEl('rect', {
+          x: offsetX + xMin * zoom,
+          y: offsetY + geom.yMin * zoom,
+          width: (xMax - xMin) * zoom,
+          height: (geom.yMax - geom.yMin) * zoom,
+        }, ['ed-needle-window', `kind-${interaction.activeStitch}`]));
+      }
     }
   }
 
@@ -231,52 +225,24 @@ export function renderEditorScene(
 
   // 5c. Start marker — drawn as a presser-foot shape matching the
   // preview's visual language so the user immediately recognises that
-  // this is where the carriage sits when the design loads. The body
-  // rect + inner slot rect mirror renderFoot() in sceneMotif.ts; the
-  // hover <title> doubles as a built-in tooltip ("Carriage start
-  // position…"). Drag handling lives in editor/interact.ts via
-  // data-role="start-marker"; the store invariant (lockStartXMm)
-  // silently reverts attempted drags once the start is locked.
-  const startX = startXMmOf(project);
-  const startLocked = isStartLocked(project);
+  // this is where the carriage sits when the design loads. Drag handling
+  // lives in editor/interact.ts via data-role="start-marker"; the store
+  // invariant (lockStartXMm) silently reverts attempted drags once the
+  // start is locked.
   const chainAnchorY = project.points[0]?.y ?? 0;
-  const startPx = px(startX, chainAnchorY);
-  const startG = svgEl('g', {
-    'data-role': 'start-marker',
-    'data-locked': startLocked ? 'true' : 'false',
-    transform: `translate(${startPx.x} ${startPx.y})`,
-  }, ['ed-start-marker', ...(startLocked ? ['ed-start-marker-locked'] : [])]);
-  // Native browser tooltip on hover, and the same string is exposed to
-  // screen readers via `<title>` (the SVG accessibility convention).
-  const startTooltip = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-  startTooltip.textContent = startLocked
-    ? `Carriage start: X = ${startX.toFixed(2)} mm. Locked — manual-mode designs freeze the start once the first stitch is placed.`
-    : `Carriage start: X = ${startX.toFixed(2)} mm. Drag to move the carriage's design-start position.`;
-  startG.appendChild(startTooltip);
-  // Foot body + inner slot, geometry-identical to the preview foot so
-  // the icon reads the same in both modes. Scaled by editor zoom; body
-  // dimensions come from the active foot's body width (Foot S 20 mm,
-  // Foot B 16 mm) and the shared FOOT_BODY_HEIGHT_MM = 8 mm.
-  const bodyWidthMm = footWidthMmForFoot(project.suggestedFoot);
-  const bodyW = bodyWidthMm * zoom;
-  const bodyH = FOOT_BODY_HEIGHT_MM * zoom;
+  const startLocked = isStartLocked(project);
+  const startPx = px(startXMmOf(project), chainAnchorY);
   const slotW = f.needleSlotHalfMm * 2 * zoom;
   const slotH = FOOT_SLOT_HEIGHT_MM * zoom;
-  startG.appendChild(svgEl('rect', {
-    x: -bodyW / 2,
-    y: -bodyH / 2,
-    width: bodyW,
-    height: bodyH,
-    rx: Math.min(2, bodyW / 6),
-  }, ['ed-start-body']));
-  startG.appendChild(svgEl('rect', {
-    x: -slotW / 2,
-    y: -slotH / 2,
-    width: slotW,
-    height: slotH,
-    rx: Math.min(1.5, slotW / 8),
-  }, ['ed-start-slot']));
-  svg.appendChild(startG);
+  svg.appendChild(renderStartMarker({
+    startXMm: startXMmOf(project),
+    chainAnchorY,
+    locked: startLocked,
+    bodyWidthMm: footWidthMmForFoot(project.suggestedFoot),
+    bodyHeightMm: FOOT_BODY_HEIGHT_MM,
+    slotHalfWMm: f.needleSlotHalfMm,
+    slotHeightMm: FOOT_SLOT_HEIGHT_MM,
+  }, px, zoom));
 
   // **Start Stitch** glyph — a distinct green-filled diamond marking
   // the first needle drop. Drawn at design coord (startStitch.x, 0).

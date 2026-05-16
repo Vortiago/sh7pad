@@ -29,12 +29,16 @@ import type { Stitch, StitchSequence } from './stitch.js';
 import {
   coneCorners,
   satinTrailerEnd,
-  spineToEdges,
   spineXAtY,
   type ConeEdges,
 } from '../../shared/satinShape.js';
 import { X_UNITS_PER_MM, Y_UNITS_PER_MM } from '../../parser/units.js';
 import { satinStitches } from '../../shared/satinShape.js';
+import { boundsOf } from '../bbox.js';
+import {
+  coneEdgesFromManual,
+  coneEdgesFromSegment,
+} from '../satinSources.js';
 import type { Foot } from '../foot.js';
 import {
   FootEncodeException,
@@ -417,14 +421,15 @@ function originXY(
   initialChain: { x: number; y: number },
   points: Iterable<{ x: number; y: number }>,
 ): { minXmm: number; minYmm: number } {
-  let minXmm = Infinity, minYmm = Infinity;
-  for (const p of points) {
-    if (p.x < minXmm) minXmm = p.x;
-    if (p.y < minYmm) minYmm = p.y;
-  }
-  if (!Number.isFinite(minXmm)) minXmm = initialChain.x;
-  if (!Number.isFinite(minYmm)) minYmm = initialChain.y;
-  return { minXmm, minYmm };
+  const bbox = boundsOf(points);
+  return bbox
+    ? { minXmm: bbox.minX, minYmm: bbox.minY }
+    : { minXmm: initialChain.x, minYmm: initialChain.y };
+}
+
+function* coneEdgePoints(edges: ConeEdges): Iterable<{ x: number; y: number }> {
+  for (const p of edges.leftPoints) yield p;
+  for (const p of edges.rightPoints) yield p;
 }
 
 /**
@@ -504,78 +509,104 @@ function runMultiBlock(opts: {
   }
 
   const finalized = builder.finalize();
+  const sequence = buildSequenceWithStartMarker(
+    finalized.flatStitches,
+    opts.initialCarriageXMm ?? 0,
+    opts.startStitchXMm ?? 0,
+  );
+  const blocks = resolveBlockOffsets(
+    finalized.blocks,
+    finalized.blockStarts,
+    opts.initialChain,
+    minXmm,
+    minYmm,
+    opts.startStitchXMm ?? 0,
+  );
+  return { sequence, blocks };
+}
 
-  // Empty walks (no points, no segments, no contributing manual stitches)
-  // yield an empty sequence — no start marker, matching the canonical
-  // "nothing to render" shape (also returned by safeSequenceFromProject
-  // on FootEncodeException). When there IS at least one emitted record,
-  // prepend the chain-anchor 'start' marker and the **Start Stitch**
-  // needle record (a real machine record at design coord
-  // (startStitchXMm, 0)).
-  const carriageX0 = opts.initialCarriageXMm ?? 0;
-  const startStitchX = opts.startStitchXMm ?? 0;
-  const startDxRaw = Math.round(startStitchX * X_UNITS_PER_MM);
-  const sequence: StitchSequence = finalized.flatStitches.length === 0
-    ? []
-    : [
-        { kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: carriageX0 },
-        {
-          kind: 'needle',
-          x: startStitchX,
-          y: 0,
-          dxRaw: startDxRaw,
-          dyRaw: 0,
-          sourceIndex: -1,
-          carriageXMm: carriageX0,
-        },
-        ...finalized.flatStitches,
-      ];
+/**
+ * Wrap the builder's flat stitch list in the StitchSequence shape the
+ * preview / tracker consume. Empty walks (no points, no segments, no
+ * contributing manual stitches) yield an empty sequence — matching the
+ * "nothing to render" shape also returned by safeSequenceFromProject on
+ * FootEncodeException. Non-empty walks get a chain-anchor 'start' marker
+ * prepended at design (0, 0), followed by the **Start Stitch** needle
+ * record at `(startStitchXMm, 0)` — the first real machine record.
+ */
+function buildSequenceWithStartMarker(
+  flatStitches: readonly Stitch[],
+  initialCarriageXMm: number,
+  startStitchXMm: number,
+): StitchSequence {
+  if (flatStitches.length === 0) return [];
+  const startDxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
+  return [
+    { kind: 'start', x: 0, y: 0, sourceIndex: -1, carriageXMm: initialCarriageXMm },
+    {
+      kind: 'needle',
+      x: startStitchXMm,
+      y: 0,
+      dxRaw: startDxRaw,
+      dyRaw: 0,
+      sourceIndex: -1,
+      carriageXMm: initialCarriageXMm,
+    },
+    ...flatStitches,
+  ];
+}
 
-  // Resolve element block xElem/yPos from the parallel blockStarts
-  // array. Then fix up satin-block interstitials (cone min-X relative to
-  // design min-X). Same logic, regardless of mode. Additionally, inject
-  // the **Start Stitch** as the leading short record in the FIRST
-  // element block so the binary export emits it as machine record #1.
-  let startStitchInjected = startStitchX === 0; // skip injection on no-op
-  const blocks = finalized.blocks.map((b, i): DesignBlockDraft => {
-    if (b.kind !== 'element') return b;
-    const start = finalized.blockStarts[i] ?? opts.initialChain;
-    let elemStitches = b.stitches;
-    if (!startStitchInjected) {
-      elemStitches = [{ kind: 'short', dxRaw: startDxRaw, dyRaw: 0 }, ...b.stitches];
-      startStitchInjected = true;
-    }
-    return {
-      kind: 'element',
-      stitches: elemStitches,
-      xElem: Math.round((start.x - minXmm) * 1000),
-      yPos: Math.round((start.y - minYmm) * 1500),
-    };
-  });
-  const finalBlocks: DesignBlockDraft[] = [];
-  let runningChainY = opts.initialChain.y;
-  for (const b of blocks) {
-    if (b.kind === 'satin') {
-      let coneMinXmm = Infinity;
-      for (const p of b.edges.leftPoints) if (p.x < coneMinXmm) coneMinXmm = p.x;
-      for (const p of b.edges.rightPoints) if (p.x < coneMinXmm) coneMinXmm = p.x;
-      finalBlocks.push({
-        kind: 'satin',
-        edges: b.edges,
-        interstitial: [
-          Math.round((coneMinXmm - minXmm) * 1000),
-          Math.round((runningChainY - minYmm) * 1500),
-        ],
+/**
+ * Resolve element-block xElem/yPos from the parallel blockStarts array,
+ * fix up satin-block interstitials so each cone's min-X / chain-Y sits
+ * in design-relative µm, and inject the **Start Stitch** as the leading
+ * short record in the FIRST element block so the binary export emits it
+ * as machine record #1. Pure function — same logic regardless of mode.
+ */
+function resolveBlockOffsets(
+  blocks: readonly DesignBlockDraft[],
+  blockStarts: readonly ({ x: number; y: number } | null)[],
+  initialChain: { x: number; y: number },
+  minXmm: number,
+  minYmm: number,
+  startStitchXMm: number,
+): DesignBlockDraft[] {
+  const startDxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
+  let startStitchInjected = startStitchXMm === 0; // skip injection on no-op
+  const out: DesignBlockDraft[] = [];
+  let runningChainY = initialChain.y;
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i]!;
+    if (b.kind === 'element') {
+      const start = blockStarts[i] ?? initialChain;
+      let elemStitches = b.stitches;
+      if (!startStitchInjected) {
+        elemStitches = [{ kind: 'short', dxRaw: startDxRaw, dyRaw: 0 }, ...b.stitches];
+        startStitchInjected = true;
+      }
+      out.push({
+        kind: 'element',
+        stitches: elemStitches,
+        xElem: Math.round((start.x - minXmm) * 1000),
+        yPos: Math.round((start.y - minYmm) * 1500),
       });
-      // After the satin, the chain Y advances to BR.y for any subsequent
-      // element block's yPos calculation.
-      runningChainY = coneCorners(b.edges).br.y;
-    } else {
-      finalBlocks.push(b);
+      continue;
     }
+    const coneBbox = boundsOf(coneEdgePoints(b.edges));
+    const coneMinXmm = coneBbox?.minX ?? initialChain.x;
+    out.push({
+      kind: 'satin',
+      edges: b.edges,
+      interstitial: [
+        Math.round((coneMinXmm - minXmm) * 1000),
+        Math.round((runningChainY - minYmm) * 1500),
+      ],
+    });
+    // After the satin, the chain Y advances to BR.y for any subsequent
+    // element block's yPos calculation.
+    runningChainY = coneCorners(b.edges).br.y;
   }
-
-  return { sequence, blocks: finalBlocks };
+  return out;
 }
 
 /**
@@ -603,13 +634,8 @@ export function emitDesignMultiBlock(
   const edgesBySegId = new Map<string, ConeEdges>();
   for (const seg of segments) {
     if (seg.type !== 'satin') continue;
-    const from = byId.get(seg.from);
-    const to = byId.get(seg.to);
-    if (!from || !to) continue;
-    edgesBySegId.set(
-      seg.id,
-      spineToEdges({ from, to, widthStart: seg.widthStart, widthEnd: seg.widthEnd }),
-    );
+    const edges = coneEdgesFromSegment(seg, byId);
+    if (edges) edgesBySegId.set(seg.id, edges);
   }
 
   const initialChain = points[0] ?? { x: 0, y: 0 };
@@ -672,12 +698,7 @@ export function emitManualMultiBlock(
   const edgesByStitchIdx = new Map<number, ConeEdges>();
   project.manualStitches.forEach((m, i) => {
     if (m.kind !== 'satin') return;
-    edgesByStitchIdx.set(i, spineToEdges({
-      from: { x: m.x, y: m.y },
-      to: { x: m.toX, y: m.toY },
-      widthStart: m.widthStart,
-      widthEnd: m.widthEnd,
-    }));
+    edgesByStitchIdx.set(i, coneEdgesFromManual(m));
   });
 
   const bboxPoints = function* (): Iterable<{ x: number; y: number }> {

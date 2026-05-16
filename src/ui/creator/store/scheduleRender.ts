@@ -44,3 +44,26 @@ export function createRenderScheduler(render: () => void): RenderScheduler {
     },
   };
 }
+
+/** Minimal store contract the scheduler needs: just the ability to
+ *  subscribe to change events. Matches both ProjectStore and UiStore
+ *  without dragging their full API into this module. */
+interface SubscribableStore {
+  subscribe(listener: () => void): unknown;
+}
+
+/**
+ * Create a render scheduler and wire it to one or more stores. Replaces
+ * the 3-line boilerplate every pane controller used to repeat
+ * (createRenderScheduler + subscribe(uiStore) + subscribe(projectStore))
+ * so adding a new store to a pane — or forgetting to subscribe to one —
+ * shows up at the call site instead of being silently absent.
+ */
+export function attachStoresToScheduler(
+  render: () => void,
+  stores: readonly SubscribableStore[],
+): RenderScheduler {
+  const scheduler = createRenderScheduler(render);
+  for (const store of stores) store.subscribe(() => scheduler.schedule());
+  return scheduler;
+}

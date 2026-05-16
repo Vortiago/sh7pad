@@ -39,7 +39,7 @@ import {
 import { buildSidebarCallbacks } from './callbacks.js';
 import { renderModeSwitch, type Mode } from '../modeSwitch/index.js';
 import { normalizeActiveStitch, normalizeTool } from '../toolbar/index.js';
-import { createRenderScheduler } from '../store/scheduleRender.js';
+import { attachStoresToScheduler } from '../store/scheduleRender.js';
 import type { ProjectStore } from '../../../creator/projectStore.js';
 import type { UiStore, UiState } from '../store/uiStore.js';
 import type { EditorPaneHandle } from '../editor/index.js';
@@ -47,6 +47,32 @@ import type { PreviewPaneHandle } from '../preview/index.js';
 import type { Project } from '../../../creator/types.js';
 
 const COLLAPSE_KEY = 'sh7.ui.leftCollapsed';
+
+/**
+ * Rebuild-only-when-dirty runner. Captures the previous input snapshot
+ * and runs `action` whenever any keyed value changes (shallow equality).
+ * The first call runs unconditionally — there's no prior snapshot, so a
+ * sidebar bootstrap is also a dirty event. Replaces the hand-rolled
+ * `let lastX: ... | null = null; if (initial || s.x !== lastX) { ... }`
+ * fan-out in applyDiff so adding a new region input is one line, not
+ * three (snapshot + dirty-check + write-back).
+ */
+function createDirtyRunner<T extends Record<string, unknown>>() {
+  let last: T | null = null;
+  return {
+    run(next: T, action: () => void): void {
+      if (last !== null) {
+        let same = true;
+        for (const k in next) {
+          if (next[k] !== last[k]) { same = false; break; }
+        }
+        if (same) return;
+      }
+      action();
+      last = next;
+    },
+  };
+}
 
 export interface SidebarPaneDeps {
   doc: Document;
@@ -127,20 +153,25 @@ export function attachSidebar(deps: SidebarPaneDeps): void {
     regions = renderSidebarShell(sidebarRoot, callbacks);
   }
 
-  // Cached snapshots of each region's inputs. applyDiff() rebuilds only
-  // the regions whose inputs changed since the last apply pass.
-  let lastProjects: UiState['projects'] | null = null;
-  let lastCurrentId: string | null = null;
-  let lastProject: Project | null = null;
-  let lastMode: Mode | null = null;
-  let lastNeedleSizeNm: number | null = null;
-  let lastThreadDiameterMm: number | null = null;
-  let lastThreadColor: string | null = null;
-  let lastBgColor: string | null = null;
-  let lastShowHistory: boolean | null = null;
-  let lastShowFoot: boolean | null = null;
-  let lastBg: Project['bg'] | undefined = undefined;
-  let lastBgSeen = false;
+  // Per-region dirty runners — each rebuilds its region only when its
+  // own inputs change. Adding a new input is one line (extend the run()
+  // payload) instead of touching a separate cache + dirty-check +
+  // write-back triplet.
+  const projectsRunner = createDirtyRunner<{
+    projects: UiState['projects'];
+    currentId: string | null;
+  }>();
+  const stitchSettingsRunner = createDirtyRunner<{ project: Project }>();
+  const previewSettingsRunner = createDirtyRunner<{
+    mode: Mode;
+    needleSizeNm: number;
+    threadDiameterMm: number;
+    threadColor: string;
+    bgColor: string;
+    showHistory: boolean;
+    showFoot: boolean;
+  }>();
+  const bgImageRunner = createDirtyRunner<{ bg: Project['bg'] }>();
 
   function currentSidebarState(): SidebarState {
     const project = projectStore.getState();
@@ -161,55 +192,44 @@ export function attachSidebar(deps: SidebarPaneDeps): void {
     };
   }
 
-  function applyDiff(initial: boolean): void {
+  function applyDiff(): void {
     if (!regions) return;
     const s = currentSidebarState();
+    const p = s.preview!;
 
     // Projects region: list contents + active marker.
-    if (initial || s.projects !== lastProjects || s.currentId !== lastCurrentId) {
-      renderProjectsRegion(regions.projects, s, callbacks);
-      lastProjects = s.projects;
-      lastCurrentId = s.currentId;
-    }
+    projectsRunner.run({ projects: s.projects, currentId: s.currentId }, () => {
+      renderProjectsRegion(regions!.projects, s, callbacks);
+    });
 
     // Stitch-settings region: locked metadata + tension. The reference
     // identity of the active Project changes on every projectStore
     // setState, so this is a cheap === check.
-    if (initial || s.project !== lastProject) {
-      renderStitchSettingsRegion(regions.stitchSettings, s, callbacks);
-      lastProject = s.project;
-    }
+    stitchSettingsRunner.run({ project: s.project }, () => {
+      renderStitchSettingsRegion(regions!.stitchSettings, s, callbacks);
+    });
 
     // Preview-settings region: mode flip + every preview-tuning input.
     // syncPreviewSettingsControls keeps the colour picker's input node
     // alive across `input` events (see ./previewSettings.ts) so the
     // native dialog isn't detached mid-pick.
-    const previewDirty =
-      (s.mode ?? 'edit') !== lastMode ||
-      (s.preview?.needleSizeNm ?? null) !== lastNeedleSizeNm ||
-      (s.preview?.threadDiameterMm ?? null) !== lastThreadDiameterMm ||
-      (s.preview?.threadColor ?? null) !== lastThreadColor ||
-      (s.preview?.bgColor ?? null) !== lastBgColor ||
-      (s.preview?.showHistory ?? null) !== lastShowHistory ||
-      (s.preview?.showFoot ?? null) !== lastShowFoot;
-    if (initial || previewDirty) {
-      renderPreviewSettingsRegion(regions.previewSettings, s, callbacks);
-      lastMode = s.mode ?? 'edit';
-      lastNeedleSizeNm = s.preview?.needleSizeNm ?? null;
-      lastThreadDiameterMm = s.preview?.threadDiameterMm ?? null;
-      lastThreadColor = s.preview?.threadColor ?? null;
-      lastBgColor = s.preview?.bgColor ?? null;
-      lastShowHistory = s.preview?.showHistory ?? null;
-      lastShowFoot = s.preview?.showFoot ?? null;
-    }
+    previewSettingsRunner.run({
+      mode: s.mode ?? 'edit',
+      needleSizeNm: p.needleSizeNm,
+      threadDiameterMm: p.threadDiameterMm,
+      threadColor: p.threadColor,
+      bgColor: p.bgColor,
+      showHistory: p.showHistory,
+      showFoot: p.showFoot,
+    }, () => {
+      renderPreviewSettingsRegion(regions!.previewSettings, s, callbacks);
+    });
 
     // Bg-image region: a fresh blob reference / coord patch / removal
     // is the only thing this region reads from the project.
-    if (initial || !lastBgSeen || s.project.bg !== lastBg) {
-      renderBgImageRegion(regions.bgImage, s, callbacks);
-      lastBg = s.project.bg;
-      lastBgSeen = true;
-    }
+    bgImageRunner.run({ bg: s.project.bg }, () => {
+      renderBgImageRegion(regions!.bgImage, s, callbacks);
+    });
   }
 
   function renderModeSwitchInner(): void {
@@ -218,20 +238,20 @@ export function attachSidebar(deps: SidebarPaneDeps): void {
   }
 
   // Initial render of every region, then attach the auto-subscription.
-  applyDiff(true);
+  // The runners have a null prior-snapshot, so the first applyDiff
+  // call runs every region's action unconditionally.
+  applyDiff();
   renderModeSwitchInner();
 
   // Track mode separately so we can refresh the mode-switch widget
   // (a different DOM root) when it changes.
   let lastModeForSwitch = uiStore.getState().mode;
-  const scheduler = createRenderScheduler(() => {
-    applyDiff(false);
+  attachStoresToScheduler(() => {
+    applyDiff();
     const m = uiStore.getState().mode;
     if (m !== lastModeForSwitch) {
       lastModeForSwitch = m;
       renderModeSwitchInner();
     }
-  });
-  uiStore.subscribe(() => scheduler.schedule());
-  projectStore.subscribe(() => scheduler.schedule());
+  }, [uiStore, projectStore]);
 }

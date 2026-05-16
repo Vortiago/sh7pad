@@ -26,6 +26,7 @@ import {
   STITCH_DY_MAX_RAW,
 } from './sh7Limits.js';
 import { foot } from './foot.js';
+import { boundsOf } from './bbox.js';
 import { rawYtoMm } from '../parser/units.js';
 import type { Project } from './types.js';
 import type { StitchSequence } from './pipeline/stitch.js';
@@ -148,29 +149,23 @@ export function auditDesignBounds(project: Project): string[] {
     errors.push('design project has no segments');
     return errors;
   }
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const p of project.points) {
-    if (p.x < minX) minX = p.x;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.y > maxY) maxY = p.y;
-  }
-  if (project.mode === 'manual') {
-    for (const m of project.manualStitches) {
-      if (m.x < minX) minX = m.x;
-      if (m.x > maxX) maxX = m.x;
-      if (m.y < minY) minY = m.y;
-      if (m.y > maxY) maxY = m.y;
+  const bboxPoints = function* (): Iterable<{ x: number; y: number }> {
+    for (const p of project.points) yield p;
+    if (project.mode === 'manual') {
+      for (const m of project.manualStitches) yield { x: m.x, y: m.y };
     }
-  }
-  const yMm = maxY - minY;
+  };
+  // project.points is non-empty here (the early-return at top of function
+  // guarantees it), so boundsOf cannot return null.
+  const bbox = boundsOf(bboxPoints())!;
+  const yMm = bbox.maxY - bbox.minY;
   if (yMm > 43.6) {
     errors.push(`Y dimension ${yMm.toFixed(2)} mm exceeds the 43.6 mm cap (val[2] = Y * 1.5 is BE16)`);
   }
   // X cap follows the active foot's carriage range — Foot B's 9 mm or
   // Foot S / hidden's 54.5 mm. The Foot record owns this; we just multiply.
   const xCapMm = foot(project.suggestedFoot).carriageReachHalfMm * 2;
-  const xMm = maxX - minX;
+  const xMm = bbox.maxX - bbox.minX;
   if (xMm > xCapMm) {
     errors.push(
       `X dimension ${xMm.toFixed(2)} mm exceeds the ${xCapMm} mm encoder envelope for foot ${project.suggestedFoot}`,

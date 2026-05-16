@@ -20,10 +20,9 @@ test('disclaimer auto-opens on first load with the GitHub link', async ({ page }
   const dialog = page.locator('.info-backdrop[data-component="disclaimer"]');
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('.info-title')).toContainText('sh7pad');
-  const link = dialog.locator('a');
-  await expect(link).toHaveAttribute('href', 'https://github.com/Vortiago/sh7pad');
-  await expect(link).toHaveAttribute('target', '_blank');
-  await expect(link).toHaveAttribute('rel', /noopener/);
+  const sourceLink = dialog.locator('a[href="https://github.com/Vortiago/sh7pad"]');
+  await expect(sourceLink).toHaveAttribute('target', '_blank');
+  await expect(sourceLink).toHaveAttribute('rel', /noopener/);
 });
 
 test('"Got it" closes the disclaimer and persists the dismissal', async ({ page }) => {

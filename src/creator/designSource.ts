@@ -19,7 +19,9 @@
 
 import { foot } from './foot.js';
 import { hasSatin, startStitchOf, startXMmOf } from './project.js';
-import { spineToEdges, type ConeEdges } from '../shared/satinShape.js';
+import { boundsOf, xUmYumFromBbox } from './bbox.js';
+import type { ConeEdges } from '../shared/satinShape.js';
+import { coneEdgesFromManual, coneEdgesFromSegment } from './satinSources.js';
 import {
   emitDesignMultiBlock,
   emitManualMultiBlock,
@@ -197,21 +199,7 @@ function sequenceToSingletonDraft(seq: StitchSequence, project: Project): Single
  * don't sew, so they shouldn't drive the displayed dimension.
  */
 function sequenceDimensionsUm(seq: StitchSequence): { xUm: number; yUm: number } {
-  if (seq.length === 0) return { xUm: 0, yUm: 0 };
-  let minX = Infinity;
-  let maxX = -Infinity;
-  let minY = Infinity;
-  let maxY = -Infinity;
-  for (const s of seq) {
-    if (s.x < minX) minX = s.x;
-    if (s.x > maxX) maxX = s.x;
-    if (s.y < minY) minY = s.y;
-    if (s.y > maxY) maxY = s.y;
-  }
-  return {
-    xUm: Math.round((maxX - minX) * 1000),
-    yUm: Math.round((maxY - minY) * 1000),
-  };
+  return xUmYumFromBbox(boundsOf(seq));
 }
 
 // ---------------------------------------------------------------------------
@@ -250,12 +238,8 @@ function segmentSatinSource(project: Project): SatinSource {
   const edges: ConeEdges[] = [];
   for (const seg of project.segments) {
     if (seg.type !== 'satin') continue;
-    const from = pointsById.get(seg.from);
-    const to = pointsById.get(seg.to);
-    if (!from || !to) continue;
-    edges.push(spineToEdges({
-      from, to, widthStart: seg.widthStart, widthEnd: seg.widthEnd,
-    }));
+    const e = coneEdgesFromSegment(seg, pointsById);
+    if (e) edges.push(e);
   }
   return {
     coneEdges: () => edges,
@@ -271,12 +255,7 @@ function manualSatinSource(project: Project): SatinSource {
   const edges: ConeEdges[] = [];
   for (const m of project.manualStitches) {
     if (m.kind !== 'satin') continue;
-    edges.push(spineToEdges({
-      from: { x: m.x, y: m.y },
-      to: { x: m.toX, y: m.toY },
-      widthStart: m.widthStart,
-      widthEnd: m.widthEnd,
-    }));
+    edges.push(coneEdgesFromManual(m));
   }
   return {
     coneEdges: () => edges,
@@ -294,31 +273,24 @@ function manualSatinSource(project: Project): SatinSource {
  * Without the cone edges the bbox would undersize designs whose cones
  * extend beyond the spine's bounding box.
  */
+function* dimensionsPoints(
+  project: Project,
+  satinEdges: Iterable<ConeEdges>,
+): Iterable<{ x: number; y: number }> {
+  for (const p of project.points) yield p;
+  for (const m of project.manualStitches) {
+    yield { x: m.x, y: m.y };
+    if (m.kind === 'satin') yield { x: m.toX, y: m.toY };
+  }
+  for (const edges of satinEdges) {
+    for (const p of edges.leftPoints) yield p;
+    for (const p of edges.rightPoints) yield p;
+  }
+}
+
 function dimensionsUm(
   project: Project,
   satinEdges: Iterable<ConeEdges>,
 ): { xUm: number; yUm: number } {
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  let any = false;
-  const expand = (x: number, y: number) => {
-    any = true;
-    if (x < minX) minX = x;
-    if (x > maxX) maxX = x;
-    if (y < minY) minY = y;
-    if (y > maxY) maxY = y;
-  };
-  for (const p of project.points) expand(p.x, p.y);
-  for (const m of project.manualStitches) {
-    expand(m.x, m.y);
-    if (m.kind === 'satin') expand(m.toX, m.toY);
-  }
-  for (const edges of satinEdges) {
-    for (const p of edges.leftPoints) expand(p.x, p.y);
-    for (const p of edges.rightPoints) expand(p.x, p.y);
-  }
-  if (!any) return { xUm: 0, yUm: 0 };
-  return {
-    xUm: Math.round((maxX - minX) * 1000),
-    yUm: Math.round((maxY - minY) * 1000),
-  };
+  return xUmYumFromBbox(boundsOf(dimensionsPoints(project, satinEdges)));
 }

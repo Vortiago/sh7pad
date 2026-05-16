@@ -245,21 +245,13 @@ function appendSatinChain(
   segments: Segment[],
 ): string | null {
   if (!fromId) return null;
-  const left0 = satin.leftPoints[0];
-  const right0 = satin.rightPoints[0];
-  const leftN = satin.leftPoints[satin.leftPoints.length - 1];
-  const rightN = satin.rightPoints[satin.rightPoints.length - 1];
-  if (!left0 || !right0 || !leftN || !rightN) return null;
-
-  const top = midpointMm(left0, right0);
-  const bot = midpointMm(leftN, rightN);
-  const exitMm = toMm(rightN);
-  const widthStart = rawXtoMm(Math.abs(right0.x - left0.x));
-  const widthEnd = rawXtoMm(Math.abs(rightN.x - leftN.x));
+  const c = extractSatinCorners(satin);
+  if (!c) return null;
+  const exitMm = toMm(c.brRaw);
 
   // 1) detour-in: TL → spineTop
   const spineTopId = newPointId();
-  points.push({ id: spineTopId, x: top.x, y: top.y });
+  points.push({ id: spineTopId, x: c.top.x, y: c.top.y });
   segments.push({
     id: newSegmentId(),
     from: fromId,
@@ -270,14 +262,14 @@ function appendSatinChain(
 
   // 2) satin: spineTop → spineBot
   const spineBotId = newPointId();
-  points.push({ id: spineBotId, x: bot.x, y: bot.y });
+  points.push({ id: spineBotId, x: c.bot.x, y: c.bot.y });
   segments.push({
     id: newSegmentId(),
     from: spineTopId,
     to: spineBotId,
     type: 'satin',
-    widthStart,
-    widthEnd,
+    widthStart: c.widthStart,
+    widthEnd: c.widthEnd,
     density: 0.6,
     imported: true,
   });
@@ -294,6 +286,34 @@ function appendSatinChain(
   });
 
   return brId;
+}
+
+/**
+ * Shared corner-extraction for a binary SatinSection. Returns the
+ * spine-top / spine-bottom mm midpoints, the original raw BR corner
+ * (for the manual-mode chain exit point), and the cone widths derived
+ * from the top/bottom edge spans. Returns null when any of the four
+ * outline corners is missing.
+ */
+function extractSatinCorners(satin: SatinSection): {
+  top: MmPoint;
+  bot: MmPoint;
+  brRaw: { x: number; y: number };
+  widthStart: number;
+  widthEnd: number;
+} | null {
+  const left0 = satin.leftPoints[0];
+  const right0 = satin.rightPoints[0];
+  const leftN = satin.leftPoints[satin.leftPoints.length - 1];
+  const rightN = satin.rightPoints[satin.rightPoints.length - 1];
+  if (!left0 || !right0 || !leftN || !rightN) return null;
+  return {
+    top: midpointMm(left0, right0),
+    bot: midpointMm(leftN, rightN),
+    brRaw: rightN,
+    widthStart: rawXtoMm(Math.abs(right0.x - left0.x)),
+    widthEnd: rawXtoMm(Math.abs(rightN.x - leftN.x)),
+  };
 }
 
 function midpointMm(a: { x: number; y: number }, b: { x: number; y: number }): MmPoint {
@@ -475,19 +495,14 @@ function centerManualStitchesAtChainAnchor(
 }
 
 function manualSatinFromSection(satin: SatinSection): ManualSatinSegment | null {
-  const left0 = satin.leftPoints[0];
-  const right0 = satin.rightPoints[0];
-  const leftN = satin.leftPoints[satin.leftPoints.length - 1];
-  const rightN = satin.rightPoints[satin.rightPoints.length - 1];
-  if (!left0 || !right0 || !leftN || !rightN) return null;
-  const top = midpointMm(left0, right0);
-  const bot = midpointMm(leftN, rightN);
+  const c = extractSatinCorners(satin);
+  if (!c) return null;
   return {
     kind: 'satin',
-    x: top.x, y: top.y,
-    toX: bot.x, toY: bot.y,
-    widthStart: rawXtoMm(Math.abs(right0.x - left0.x)),
-    widthEnd: rawXtoMm(Math.abs(rightN.x - leftN.x)),
+    x: c.top.x, y: c.top.y,
+    toX: c.bot.x, toY: c.bot.y,
+    widthStart: c.widthStart,
+    widthEnd: c.widthEnd,
     density: DEFAULT_SATIN_DENSITY_MM,
   };
 }

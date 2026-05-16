@@ -182,6 +182,22 @@ export function planFoot(
   let cursorYRaw = 0;
   let carriageXRaw = opts.initialCarriageXRaw ?? 0;
 
+  // Single push site for the five record-emit locations below. Each had
+  // an identical raw→mm conversion for cursor/carriage; centralising it
+  // means future tweaks to PlannedRecord (or the raw-units convention)
+  // land in one place. Reads the outer cursor/carriage state, which is
+  // always updated BEFORE the push at every call site.
+  const pushRecord = (kind: 'short' | 'jump', dxRaw: number, dyRaw: number): void => {
+    records.push({
+      kind,
+      dxRaw,
+      dyRaw,
+      endXMm: cursorXRaw / X_UNITS_PER_MM,
+      endYMm: cursorYRaw / Y_UNITS_PER_MM,
+      carriageXMm: carriageXRaw / X_UNITS_PER_MM,
+    });
+  };
+
   for (let segIdx = 0; segIdx < segments.length; segIdx++) {
     const seg = segments[segIdx]!;
     const targetXRaw = cursorXRaw + seg.dxRaw;
@@ -200,14 +216,7 @@ export function planFoot(
     ) {
       cursorXRaw = targetXRaw;
       cursorYRaw += seg.dyRaw;
-      records.push({
-        kind: 'short',
-        dxRaw: seg.dxRaw,
-        dyRaw: seg.dyRaw,
-        endXMm: cursorXRaw / X_UNITS_PER_MM,
-        endYMm: cursorYRaw / Y_UNITS_PER_MM,
-        carriageXMm: carriageXRaw / X_UNITS_PER_MM,
-      });
+      pushRecord('short', seg.dxRaw, seg.dyRaw);
       continue;
     }
 
@@ -246,14 +255,7 @@ export function planFoot(
           }
           carriageXRaw = nextCarriage;
         }
-        records.push({
-          kind: inSlot ? 'short' : 'jump',
-          dxRaw: dxPiece,
-          dyRaw: dyPiece,
-          endXMm: cursorXRaw / X_UNITS_PER_MM,
-          endYMm: cursorYRaw / Y_UNITS_PER_MM,
-          carriageXMm: carriageXRaw / X_UNITS_PER_MM,
-        });
+        pushRecord(inSlot ? 'short' : 'jump', dxPiece, dyPiece);
       }
       continue;
     }
@@ -312,14 +314,7 @@ export function planFoot(
       cursorYRaw += aDy;
       remDx -= aDx;
       remDy -= aDy;
-      records.push({
-        kind: 'short',
-        dxRaw: aDx,
-        dyRaw: aDy,
-        endXMm: cursorXRaw / X_UNITS_PER_MM,
-        endYMm: cursorYRaw / Y_UNITS_PER_MM,
-        carriageXMm: carriageXRaw / X_UNITS_PER_MM,
-      });
+      pushRecord('short', aDx, aDy);
 
       // Cursor sits at (or past) the slot edge in this direction — stop
       // Phase A and let Phase B walk.
@@ -364,14 +359,7 @@ export function planFoot(
         carriageXRaw = nextCarriage;
         remDx -= dxPiece;
         remDy -= dyPiece;
-        records.push({
-          kind: 'jump',
-          dxRaw: dxPiece,
-          dyRaw: dyPiece,
-          endXMm: cursorXRaw / X_UNITS_PER_MM,
-          endYMm: cursorYRaw / Y_UNITS_PER_MM,
-          carriageXMm: carriageXRaw / X_UNITS_PER_MM,
-        });
+        pushRecord('jump', dxPiece, dyPiece);
       }
     }
 
@@ -388,14 +376,7 @@ export function planFoot(
         const dyPiece = stepY + sY;
         if (yRem !== 0) yRem -= sY;
         cursorYRaw += dyPiece;
-        records.push({
-          kind: 'short',
-          dxRaw: 0,
-          dyRaw: dyPiece,
-          endXMm: cursorXRaw / X_UNITS_PER_MM,
-          endYMm: cursorYRaw / Y_UNITS_PER_MM,
-          carriageXMm: carriageXRaw / X_UNITS_PER_MM,
-        });
+        pushRecord('short', 0, dyPiece);
       }
     }
   }

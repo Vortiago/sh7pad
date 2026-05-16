@@ -112,9 +112,11 @@ export function renderToolbar(
 
   // Stats group (right-aligned).
   const right = clone<HTMLDivElement>(toolgroupRightTpl);
-  right.appendChild(tlbl(
+  const stats = tlbl(
     `${state.project.points.length} pts · ${state.project.segments.length} seg · ±${state.project.hoop.halfW}×${state.project.hoop.h}mm`,
-  ));
+  );
+  stats.dataset['testid'] = 'toolbar-stats';
+  right.appendChild(stats);
   root.appendChild(right);
 }
 

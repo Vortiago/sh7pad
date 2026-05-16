@@ -19,7 +19,7 @@ import {
   type RowId,
 } from './panel.js';
 import { currentRowFromStep, parseManualRowId, stepFromRow } from '../rowIdMapping.js';
-import { createRenderScheduler } from '../store/scheduleRender.js';
+import { attachStoresToScheduler } from '../store/scheduleRender.js';
 import type { ProjectStore } from '../../../creator/projectStore.js';
 import type { Selection, UiStore } from '../store/uiStore.js';
 import type { EditorPaneHandle } from '../editor/index.js';
@@ -125,9 +125,7 @@ export function attachStitchListPanel(deps: StitchListPaneDeps): StitchListPaneH
   // subscribes to both stores directly. Rebuilding the list has no
   // focus-bearing inputs to lose, so unconditional re-render on any
   // store change is fine.
-  const scheduler = createRenderScheduler(render);
-  uiStore.subscribe(() => scheduler.schedule());
-  projectStore.subscribe(() => scheduler.schedule());
+  attachStoresToScheduler(render, [uiStore, projectStore]);
 
   // Self-bootstrap: paint the initial state at attach time. The chrome
   // (collapse toggle) is independent of the list contents and has no

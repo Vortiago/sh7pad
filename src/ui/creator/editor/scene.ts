@@ -152,6 +152,66 @@ export function renderManualThread(
   return g;
 }
 
+export interface StartMarkerInput {
+  /** Carriage start X in hoop mm. */
+  startXMm: number;
+  /** Y of the chain anchor (first point), used to position the marker. */
+  chainAnchorY: number;
+  /** True when the project state has frozen the start (manual mode after
+   *  the first stitch is placed). Drives the locked class + tooltip text. */
+  locked: boolean;
+  /** Foot body width in mm — Foot S 20 mm, Foot B 16 mm. */
+  bodyWidthMm: number;
+  /** Foot body height in mm (shared constant from preview/scene). */
+  bodyHeightMm: number;
+  /** Half-width of the foot's inner needle slot in mm. */
+  slotHalfWMm: number;
+  /** Inner slot height in mm (shared constant from preview/scene). */
+  slotHeightMm: number;
+}
+
+export function renderStartMarker(
+  input: StartMarkerInput,
+  px: Px,
+  zoom: number,
+): SVGGElement {
+  const { startXMm, chainAnchorY, locked, bodyWidthMm, bodyHeightMm, slotHalfWMm, slotHeightMm } = input;
+  const startPx = px(startXMm, chainAnchorY);
+  const startG = svgEl('g', {
+    'data-role': 'start-marker',
+    'data-locked': locked ? 'true' : 'false',
+    transform: `translate(${startPx.x} ${startPx.y})`,
+  }, ['ed-start-marker', ...(locked ? ['ed-start-marker-locked'] : [])]);
+  // Native browser tooltip on hover, and the same string is exposed to
+  // screen readers via `<title>` (the SVG accessibility convention).
+  const startTooltip = document.createElementNS('http://www.w3.org/2000/svg', 'title');
+  startTooltip.textContent = locked
+    ? `Carriage start: X = ${startXMm.toFixed(2)} mm. Locked — manual-mode designs freeze the start once the first stitch is placed.`
+    : `Carriage start: X = ${startXMm.toFixed(2)} mm. Drag to move the carriage's design-start position.`;
+  startG.appendChild(startTooltip);
+  // Foot body + inner slot, geometry-identical to the preview foot so
+  // the icon reads the same in both modes.
+  const bodyW = bodyWidthMm * zoom;
+  const bodyH = bodyHeightMm * zoom;
+  const slotW = slotHalfWMm * 2 * zoom;
+  const slotH = slotHeightMm * zoom;
+  startG.appendChild(svgEl('rect', {
+    x: -bodyW / 2,
+    y: -bodyH / 2,
+    width: bodyW,
+    height: bodyH,
+    rx: Math.min(2, bodyW / 6),
+  }, ['ed-start-body']));
+  startG.appendChild(svgEl('rect', {
+    x: -slotW / 2,
+    y: -slotH / 2,
+    width: slotW,
+    height: slotH,
+    rx: Math.min(1.5, slotW / 8),
+  }, ['ed-start-slot']));
+  return startG;
+}
+
 export function renderHover(
   hover: HoverHoop,
   halfW: number,

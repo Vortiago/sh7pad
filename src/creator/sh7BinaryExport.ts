@@ -1,6 +1,6 @@
 // Project → bytes pipeline. Drives the per-chunk encoders in sh7Codec.ts
 // to turn a Project into a complete .sh7 file. The byte primitives
-// themselves (encodeShortStitch, encodeChunk, encode06Block, etc.) live
+// themselves (encodeStitches, encodeChunk, encode06Block, etc.) live
 // in sh7Codec.ts — import from there directly when writing tests or
 // probes that build chunks by hand.
 
@@ -101,57 +101,41 @@ const STITCH_PREFIX = STITCH_CHUNK_PREFIX;
 const SATIN_PREFIX = SATIN_CHUNK_PREFIX;
 
 export function serializeDesignDraft(draft: DesignDraft): Uint8Array {
-  return draft.kind === 'singleton'
-    ? serializeSingletonDraft(draft)
-    : serializeMultiBlockDraft(draft);
-}
-
-function serializeSingletonDraft(draft: SingletonDesignDraft): Uint8Array {
-  // Singleton wrapper: one stitch chunk inside the 16-byte geometry wrapper
-  // (BE32 125, 125, 1000, xElem) and the NN=1 / `01 03 01 01` outer.
-  const o6Block = encode06Block({
+  // Singleton and multi-block files share the same outer shape — header,
+  // outer-prefix, metadata table, two count bytes, the o6/o5 blocks, then
+  // the class-specific geometry wrapper. Only the per-chunk encoders and
+  // outer prefix differ. Pick them per draft class and run one finalizer.
+  const o6Common = {
     footByte: draft.footByte,
     tensionByte: draft.tensionByte,
     xUm: draft.xUm,
     yUm: draft.yUm,
     val0Um: draft.o6Val0Um,
-  });
-  const o5Block = encode05Block({
-    tensionByte: draft.tensionByte,
-    xUm: draft.xUm,
-    yUm: draft.yUm,
-    xElem: draft.xElem,
-  });
-  const stitchChunk = encodeChunk(STITCH_PREFIX, encodeStitches(draft.stitches));
-  const geometryWrapper = encodeGeometryWrapper({ xElem: draft.xElem, stitchChunk });
+  };
+  let outerPrefix: Uint8Array;
+  let o6Block: Uint8Array;
+  let o5Block: Uint8Array;
+  let geometryWrapper: Uint8Array;
+  if (draft.kind === 'singleton') {
+    // Singleton wrapper: one stitch chunk inside the 16-byte geometry
+    // wrapper (BE32 125, 125, 1000, xElem) and the NN=1 / `01 03 01 01`
+    // outer.
+    outerPrefix = OUTER_PREFIX_SINGLETON;
+    o6Block = encode06Block(o6Common);
+    o5Block = encode05BlockNine(draft.tensionByte, draft.xUm, draft.yUm, draft.xElem);
+    const stitchChunk = encodeChunk(STITCH_PREFIX, encodeStitches(draft.stitches));
+    geometryWrapper = encodeGeometryWrapper({ xElem: draft.xElem, stitchChunk });
+  } else {
+    // Multi-element files MUST use n=3 0x06 / 0x05 chunks; mixing classes
+    // makes the machine display "Not supported SDC" and can crash the
+    // firmware on repeated mismatches.
+    outerPrefix = OUTER_PREFIX_MULTI;
+    o6Block = encode06BlockMulti(o6Common);
+    o5Block = encode05BlockNine(draft.tensionByte, draft.xUm, draft.yUm, null);
+    geometryWrapper = encodeMultiBlockGeometryWrapper(draft.blocks);
+  }
   return finalizeFile(
-    OUTER_PREFIX_SINGLETON,
-    o6Block,
-    o5Block,
-    geometryWrapper,
-    draft.producerString ?? SH7PAD_PRODUCER_STRING,
-  );
-}
-
-function serializeMultiBlockDraft(draft: MultiBlockDesignDraft): Uint8Array {
-  // Multi-element files MUST use n=3 0x06 / 0x05 chunks; mixing classes
-  // makes the machine display "Not supported SDC" and can crash the
-  // firmware on repeated mismatches.
-  const o6Block = encode06BlockMulti({
-    footByte: draft.footByte,
-    tensionByte: draft.tensionByte,
-    xUm: draft.xUm,
-    yUm: draft.yUm,
-    val0Um: draft.o6Val0Um,
-  });
-  const o5Block = encode05BlockMulti({
-    tensionByte: draft.tensionByte,
-    xUm: draft.xUm,
-    yUm: draft.yUm,
-  });
-  const geometryWrapper = encodeMultiBlockGeometryWrapper(draft.blocks);
-  return finalizeFile(
-    OUTER_PREFIX_MULTI,
+    outerPrefix,
     o6Block,
     o5Block,
     geometryWrapper,
@@ -228,39 +212,26 @@ function encodeMultiBlockGeometryWrapper(blocks: DesignBlockDraft[]): Uint8Array
   return encodeChunk(GEOMETRY_WRAPPER_PREFIX_MULTI, concat([preamble, ...subParts]));
 }
 
-interface O5BlockInput {
-  tensionByte: number;
-  xUm: number;
-  yUm: number;
-  xElem: number;
-}
-
-function encode05Block(input: O5BlockInput): Uint8Array {
+/**
+ * Build the 9-slot 0x05 block for either chunk class. Singletons need an
+ * `xElem` value (encoded in the per-chunk trailing BE32); multi-element
+ * files don't carry one per-slot, signalled by passing `null`. Same
+ * 9-slot loop in both cases — the per-chunk encoder is the only thing
+ * that varies.
+ */
+function encode05BlockNine(
+  tensionByte: number,
+  xUm: number,
+  yUm: number,
+  xElem: number | null,
+): Uint8Array {
   const chunks: Uint8Array[] = [];
   for (let slot = 0; slot < 9; slot++) {
     chunks.push(
-      encode05Chunk({
-        slotIndex: slot,
-        tensionByte: input.tensionByte,
-        xUm: input.xUm,
-        yUm: input.yUm,
-        xElem: input.xElem,
-      }),
+      xElem === null
+        ? encode05ChunkMulti({ slotIndex: slot, tensionByte, xUm, yUm })
+        : encode05Chunk({ slotIndex: slot, tensionByte, xUm, yUm, xElem }),
     );
-  }
-  return concat(chunks);
-}
-
-interface O5MultiBlockInput {
-  tensionByte: number;
-  xUm: number;
-  yUm: number;
-}
-
-function encode05BlockMulti(input: O5MultiBlockInput): Uint8Array {
-  const chunks: Uint8Array[] = [];
-  for (let slot = 0; slot < 9; slot++) {
-    chunks.push(encode05ChunkMulti({ slotIndex: slot, ...input }));
   }
   return concat(chunks);
 }
