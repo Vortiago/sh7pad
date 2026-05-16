@@ -30,8 +30,8 @@ test('Reopen the About modal from the sidebar', async ({ page }) => {
   const dialog = page.locator('[data-component="disclaimer"]');
   await expect(dialog).toBeVisible();
 
-  const link = dialog.locator('a[href*="github.com/Vortiago/sh7pad"]');
-  await expect(link).toHaveAttribute('href', 'https://github.com/Vortiago/sh7pad');
+  const sourceLink = dialog.locator('a[href="https://github.com/Vortiago/sh7pad"]');
+  await expect(sourceLink).toBeVisible();
 
   await page.locator('button[data-action="disclaimer-dismiss"]').click();
   await expect(dialog).toHaveCount(0);

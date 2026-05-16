@@ -2,7 +2,8 @@ import { test, expect } from '@playwright/test';
 import { enterEdit, enterPreview, gotoApp } from './helpers';
 
 // Preview transport + Preview Settings flows. Uses the seeded "Wave
-// sample" which has 135 drops at the Compact (default) encoder.
+// sample" which has 136 drops at the Compact (default) encoder (135
+// user stitches + 1 leading Start Stitch needle record).
 
 test('Switch to Preview, play, scrub, and return to Edit', async ({ page }) => {
   await gotoApp(page);
@@ -11,7 +12,7 @@ test('Switch to Preview, play, scrub, and return to Edit', async ({ page }) => {
   // Preview pane visible, edit pane hidden, drop readout at 0/135.
   await expect(page.locator('#pane-preview')).toBeVisible();
   await expect(page.locator('#pane-edit')).toBeHidden();
-  await expect(page.locator('[data-testid="preview-drop-count"]')).toContainText('0/135 drops');
+  await expect(page.locator('[data-testid="preview-drop-count"]')).toContainText('0/136 drops');
 
   const transport = page.locator('.pv-transport');
 
@@ -28,7 +29,7 @@ test('Switch to Preview, play, scrub, and return to Edit', async ({ page }) => {
   // Scrub back to step 0; the readout returns to 0/135.
   const scrub = transport.locator('input[data-action="scrub"]');
   await scrub.fill('0');
-  await expect(page.locator('[data-testid="preview-drop-count"]')).toContainText('0/135 drops');
+  await expect(page.locator('[data-testid="preview-drop-count"]')).toContainText('0/136 drops');
 
   // Returning to edit hides the transport.
   await enterEdit(page);

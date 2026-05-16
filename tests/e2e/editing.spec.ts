@@ -87,9 +87,10 @@ test('Toggle DENSITY and watch drop counts change', async ({ page }) => {
     return Number(m![1]);
   };
 
-  // Baseline: Compact (default) -> 135 drops in preview.
+  // Baseline: Compact (default) -> 136 drops in preview (135 user
+  // stitches + 1 leading Start Stitch needle record).
   await enterPreview(page);
-  expect(await totalDrops()).toBe(135);
+  expect(await totalDrops()).toBe(136);
 
   await enterEdit(page);
   await page.locator('.ed-toolbar button[data-action="encoder-mode"][data-mode="uniform"]').click();
@@ -98,11 +99,11 @@ test('Toggle DENSITY and watch drop counts change', async ({ page }) => {
   ).toHaveAttribute('data-active', 'true');
 
   await enterPreview(page);
-  expect(await totalDrops()).not.toBe(135);
+  expect(await totalDrops()).not.toBe(136);
 
-  // Flip back to Compact; the total returns to the baseline 135.
+  // Flip back to Compact; the total returns to the baseline 136.
   await enterEdit(page);
   await page.locator('.ed-toolbar button[data-action="encoder-mode"][data-mode="compact"]').click();
   await enterPreview(page);
-  expect(await totalDrops()).toBe(135);
+  expect(await totalDrops()).toBe(136);
 });
