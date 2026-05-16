@@ -12,7 +12,7 @@ export const STITCH_TAG = [0x02, 0x01, 0x01] as const;
 export const SATIN_TAG = [0x02, 0x03, 0x01] as const;
 
 /** Single-byte tag of the outer chunk (`07 NN 01 [BE32 len]`). */
-export const OUTER_CHUNK_TAG = 0x07;
+const OUTER_CHUNK_TAG = 0x07;
 
 /** Single-byte tag of every `06 NN 02` per-slot metadata chunk. */
 export const O6_CHUNK_TAG = 0x06;
@@ -21,10 +21,10 @@ export const O6_CHUNK_TAG = 0x06;
 export const O5_CHUNK_TAG = 0x05;
 
 /** Outer NN that selects the singleton parser. */
-export const OUTER_NN_SINGLETON = 0x01;
+const OUTER_NN_SINGLETON = 0x01;
 
 /** Outer NN that selects the multi-element / satin parser. */
-export const OUTER_NN_MULTI = 0x05;
+const OUTER_NN_MULTI = 0x05;
 
 /** Outer-chunk prefix for singleton (NN=1) designs. */
 export const OUTER_PREFIX_SINGLETON = new Uint8Array([

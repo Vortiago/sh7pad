@@ -19,11 +19,6 @@ import { COUNT_BYTE_9 } from './chunkTags.js';
 
 export type ChunkClass = 'singleton' | 'multi';
 
-/** Chunk class encoded in every chunk header's `n` byte (1 or 3). */
-export function classToNByte(cls: ChunkClass): 1 | 3 {
-  return cls === 'singleton' ? 1 : 3;
-}
-
 export function classFromNByte(n: number): ChunkClass | null {
   if (n === 1) return 'singleton';
   if (n === 3) return 'multi';

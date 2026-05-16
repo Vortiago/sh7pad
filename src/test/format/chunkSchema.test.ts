@@ -19,7 +19,6 @@ import {
   TENSION_BUMP,
   TENSION_BUMP_SLOT,
   classFromNByte,
-  classToNByte,
   o5PayloadLen,
   unbumpTension,
   write05SlotPattern,
@@ -36,10 +35,8 @@ import {
   SINGLETON_O6_BLOCK_TEMPLATE,
 } from '../../creator/sh7BinaryExportConstants.js';
 
-describe('classToNByte / classFromNByte', () => {
-  it('round-trips singleton ↔ 1 and multi ↔ 3', () => {
-    expect(classToNByte('singleton')).toBe(1);
-    expect(classToNByte('multi')).toBe(3);
+describe('classFromNByte', () => {
+  it('maps 1 → singleton, 3 → multi, others → null', () => {
     expect(classFromNByte(1)).toBe('singleton');
     expect(classFromNByte(3)).toBe('multi');
     expect(classFromNByte(2)).toBeNull();
