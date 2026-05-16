@@ -2,13 +2,14 @@
 // 0x09 marker check lives here too since it gates the start/end of the
 // 0x05 sequence in the driver.
 
-import { readBE32 as be32 } from '../bytes.js';
 import {
   type ChunkClass,
   o5FieldOffset,
   SLOT_PATTERN as SCHEMA_SLOT_PATTERN,
   TENSION_BUMP,
+  walkTaggedChunks,
 } from '../../format/chunkSchema.js';
+import { O5_CHUNK_TAG } from '../../format/chunkTags.js';
 import { type Ctx, fail, pass, warn } from './types.js';
 
 interface Chunk05 {
@@ -32,30 +33,28 @@ export function walkO5Chunks(
   start: number,
   classByte: number,
 ): { chunks: Chunk05[]; nextOff: number } {
-  const { buf } = ctx;
   const chunks: Chunk05[] = [];
-  let i = start;
-  while (i < buf.length - 7 && buf[i] === 0x05) {
-    const n = buf[i + 1]!;
-    const ver = buf[i + 2]!;
-    const len = be32(buf, i + 3);
-    if (ver !== 0x02) {
-      fail(ctx, '0x05 version', `chunk @0x${i.toString(16)} ver=0x${ver.toString(16)}, expected 0x02`);
+  let nextOff = start;
+  for (const c of walkTaggedChunks(ctx.buf, start, O5_CHUNK_TAG)) {
+    if (c.ver !== 0x02) {
+      // Match the original semantics: leave nextOff pointing at the bad
+      // chunk's header so the driver doesn't skip past unconsumed bytes.
+      nextOff = c.off;
+      fail(ctx, '0x05 version', `chunk @0x${c.off.toString(16)} ver=0x${c.ver.toString(16)}, expected 0x02`);
       break;
     }
-    if (n !== classByte) {
+    if (c.n !== classByte) {
       fail(
         ctx,
         '0x05 class byte',
-        `chunk @0x${i.toString(16)} n=0x${n.toString(16)}, expected 0x${classByte.toString(16)}`,
+        `chunk @0x${c.off.toString(16)} n=0x${c.n.toString(16)}, expected 0x${classByte.toString(16)}`,
         'FORMAT.md',
       );
     }
-    const payload = buf.subarray(i + 7, i + 7 + len);
-    chunks.push({ off: i, len, payload });
-    i += 7 + len;
+    chunks.push({ off: c.off, len: c.len, payload: c.payload });
+    nextOff = c.off + c.chunk.length;
   }
-  return { chunks, nextOff: i };
+  return { chunks, nextOff };
 }
 
 export function checkO5Chunks(ctx: Ctx, chunks: Chunk05[], classByte: number): void {

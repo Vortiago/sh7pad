@@ -15,6 +15,7 @@
 // PAYLOAD-relative because 0x05 chunks are emitted one at a time.
 
 import { readBE16, readBE32, writeBE16, writeBE32 } from '../parser/bytes.js';
+import { COUNT_BYTE_9 } from './chunkTags.js';
 
 export type ChunkClass = 'singleton' | 'multi';
 
@@ -38,6 +39,67 @@ export const SLOT_PATTERN: readonly number[] = [0x3c, 0x3c, 0x3c, 0x3c, 0x2d, 0x
 
 /** Length of the standard chunk header (`tag n ver [BE32 length]`). */
 export const CHUNK_HEADER_LEN = 7;
+
+/** One yielded chunk: the byte range, the header fields, and the payload slice. */
+export interface WalkedChunk {
+  /** Offset of the chunk header's first byte (the tag) within the source buffer. */
+  off: number;
+  /** Class byte from the header (1=singleton, 3=multi, other for unknown). */
+  n: number;
+  /** Version byte from the header (expected 0x02 across all observed files). */
+  ver: number;
+  /** BE32 length field from the header. */
+  len: number;
+  /** Payload slice (header stripped). */
+  payload: Uint8Array;
+  /** Full chunk slice including the 7-byte header. */
+  chunk: Uint8Array;
+}
+
+/**
+ * Skip forward past any 0x09 sentinel bytes from `start`. Both the
+ * parser and the validator have a stretch of 0x09 bytes between
+ * chunk blocks (used as a count marker by the firmware).
+ */
+export function skipCountSentinels(buf: Uint8Array, start: number): number {
+  let i = start;
+  while (i < buf.length && buf[i] === COUNT_BYTE_9) i++;
+  return i;
+}
+
+/**
+ * Walk forward yielding one length-prefixed chunk at a time. The walker
+ * stops at the first byte that doesn't equal `tag` or when the buffer
+ * runs out. It does NOT throw on a malformed chunk header — callers
+ * decide whether to throw (parser) or record a validation Result
+ * (validator). Each yielded `WalkedChunk` carries the header fields
+ * and the payload slice; the parser reads firmware fields off the
+ * payload via the schema's accessors.
+ */
+export function* walkTaggedChunks(
+  buf: Uint8Array,
+  start: number,
+  tag: number,
+): Generator<WalkedChunk> {
+  let i = start;
+  while (i < buf.length - CHUNK_HEADER_LEN && buf[i] === tag) {
+    const n = buf[i + 1]!;
+    const ver = buf[i + 2]!;
+    const len = readBE32(buf, i + 3);
+    const payloadStart = i + CHUNK_HEADER_LEN;
+    const payloadEnd = payloadStart + len;
+    if (payloadEnd > buf.length) break;
+    yield {
+      off: i,
+      n,
+      ver,
+      len,
+      payload: buf.subarray(payloadStart, payloadEnd),
+      chunk: buf.subarray(i, payloadEnd),
+    };
+    i = payloadEnd;
+  }
+}
 
 // === Field-accessor factories ==============================================
 //
