@@ -428,7 +428,6 @@ describe('migrateProject — older projects predate manual mode', () => {
       createdAt: 0,
       updatedAt: 0,
       hoop: { halfW: 60, h: 40 },
-      xLimit: 'omni54',
       suggestedFoot: 'S',
       threadTension: 4.0,
       points: [{ id: 'a', x: 0, y: 0 }],

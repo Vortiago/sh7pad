@@ -52,16 +52,6 @@ describe('renderToolbar', () => {
     expect(div.querySelector('[data-stitch="satin"]')?.getAttribute('data-active')).toBe('true');
   });
 
-  it('does not render the X-Limit dropdown (it lives in the sidebar now)', () => {
-    const div = newDiv();
-    renderToolbar(div, {
-      tool: 'add', activeStitch: 'straight', project: newProject('X'),
-    }, {
-      onTool: () => {}, onStitch: () => {}, onZoom: () => {}, onEncoderMode: () => {},
-    });
-    expect(div.querySelector('[data-control="xLimit"]')).toBeNull();
-  });
-
   it('clicking a tool button calls onTool', () => {
     const div = newDiv();
     const onTool = vi.fn();
