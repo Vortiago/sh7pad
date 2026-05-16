@@ -20,7 +20,8 @@
 import { foot } from './foot.js';
 import { hasSatin, startXMmOf } from './project.js';
 import { boundsOf, xUmYumFromBbox } from './bbox.js';
-import { spineToEdges, type ConeEdges } from '../shared/satinShape.js';
+import type { ConeEdges } from '../shared/satinShape.js';
+import { coneEdgesFromManual, coneEdgesFromSegment } from './satinSources.js';
 import {
   emitDesignMultiBlock,
   emitManualMultiBlock,
@@ -231,12 +232,8 @@ function segmentSatinSource(project: Project): SatinSource {
   const edges: ConeEdges[] = [];
   for (const seg of project.segments) {
     if (seg.type !== 'satin') continue;
-    const from = pointsById.get(seg.from);
-    const to = pointsById.get(seg.to);
-    if (!from || !to) continue;
-    edges.push(spineToEdges({
-      from, to, widthStart: seg.widthStart, widthEnd: seg.widthEnd,
-    }));
+    const e = coneEdgesFromSegment(seg, pointsById);
+    if (e) edges.push(e);
   }
   return {
     coneEdges: () => edges,
@@ -249,12 +246,7 @@ function manualSatinSource(project: Project): SatinSource {
   const edges: ConeEdges[] = [];
   for (const m of project.manualStitches) {
     if (m.kind !== 'satin') continue;
-    edges.push(spineToEdges({
-      from: { x: m.x, y: m.y },
-      to: { x: m.toX, y: m.toY },
-      widthStart: m.widthStart,
-      widthEnd: m.widthEnd,
-    }));
+    edges.push(coneEdgesFromManual(m));
   }
   return {
     coneEdges: () => edges,

@@ -29,13 +29,16 @@ import type { Stitch, StitchSequence } from './stitch.js';
 import {
   coneCorners,
   satinTrailerEnd,
-  spineToEdges,
   spineXAtY,
   type ConeEdges,
 } from '../../shared/satinShape.js';
 import { X_UNITS_PER_MM, Y_UNITS_PER_MM } from '../../parser/units.js';
 import { satinStitches } from '../../shared/satinShape.js';
 import { boundsOf } from '../bbox.js';
+import {
+  coneEdgesFromManual,
+  coneEdgesFromSegment,
+} from '../satinSources.js';
 import type { Foot } from '../foot.js';
 import {
   FootEncodeException,
@@ -607,13 +610,8 @@ export function emitDesignMultiBlock(
   const edgesBySegId = new Map<string, ConeEdges>();
   for (const seg of segments) {
     if (seg.type !== 'satin') continue;
-    const from = byId.get(seg.from);
-    const to = byId.get(seg.to);
-    if (!from || !to) continue;
-    edgesBySegId.set(
-      seg.id,
-      spineToEdges({ from, to, widthStart: seg.widthStart, widthEnd: seg.widthEnd }),
-    );
+    const edges = coneEdgesFromSegment(seg, byId);
+    if (edges) edgesBySegId.set(seg.id, edges);
   }
 
   const initialChain = points[0] ?? { x: 0, y: 0 };
@@ -674,12 +672,7 @@ export function emitManualMultiBlock(
   const edgesByStitchIdx = new Map<number, ConeEdges>();
   project.manualStitches.forEach((m, i) => {
     if (m.kind !== 'satin') return;
-    edgesByStitchIdx.set(i, spineToEdges({
-      from: { x: m.x, y: m.y },
-      to: { x: m.toX, y: m.toY },
-      widthStart: m.widthStart,
-      widthEnd: m.widthEnd,
-    }));
+    edgesByStitchIdx.set(i, coneEdgesFromManual(m));
   });
 
   const bboxPoints = function* (): Iterable<{ x: number; y: number }> {
