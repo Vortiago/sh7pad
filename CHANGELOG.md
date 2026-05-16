@@ -31,5 +31,5 @@ Initial public release.
 - Lighthouse a11y and best-practices gates on every push (a11y ≥ 0.95,
   best-practices ≥ 0.9).
 
-[Unreleased]: https://github.com/Vortiago/sh7pad/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/Vortiago/sh7pad/releases/tag/v0.1.0
+[Unreleased]: https://github.com/Vortiago/sh7pad/compare/a0574df...HEAD
+[0.1.0]: https://github.com/Vortiago/sh7pad/commit/a0574df

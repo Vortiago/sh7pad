@@ -27,6 +27,8 @@
 // writer emits and what the planner reasons about. The 'start' marker has
 // no delta; only x/y.
 
+import { X_UNITS_PER_MM } from '../../parser/units.js';
+
 export interface StartStitch {
   kind: 'start';
   x: number;
@@ -103,3 +105,52 @@ export type Stitch = StartStitch | NeedleStitch | JumpStitch;
 export type StitchSequence = readonly Stitch[];
 
 export const EMPTY_SEQUENCE: StitchSequence = [];
+
+/**
+ * Build the leading `'start'` marker + **Start Stitch** needle that
+ * prefix every non-empty StitchSequence. The 'start' marker is pinned to
+ * the **Start Stitch** position so the preview's polyline (pathOf) does
+ * not draw a phantom segment from machine origin to startStitch.x —
+ * the marker and the leading needle share an (x, y), giving a zero-length
+ * pseudo-segment that renders as nothing.
+ *
+ * The Start Stitch is still emitted as a real needle record with
+ * `dx = round(startStitchXMm * X_UNITS_PER_MM)`, `dy = 0` (by construction
+ * `|dx| ≤ NEEDLE_SLOT_HALF_MM × X_UNITS_PER_MM = 28 raw`, fits a short
+ * record) so the .sh7 byte stream is unchanged.
+ *
+ * After the Start Stitch the cursor sits at design coord
+ * (`startStitchXMm`, 0); subsequent records encode normally relative to
+ * that position.
+ *
+ * Used by the three sequence builders (encodeSegments, manualSequence,
+ * multiBlockEmit) so the shared `[start, needle]` head shape lives in
+ * one place next to the Stitch types it produces.
+ */
+export function startFrames(
+  startXMm: number,
+  startStitchXMm: number,
+): readonly [StartStitch, NeedleStitch] {
+  const dxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
+  return [
+    { kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: startXMm },
+    {
+      kind: 'needle',
+      x: startStitchXMm,
+      y: 0,
+      dxRaw,
+      dyRaw: 0,
+      sourceIndex: -1,
+      carriageXMm: startXMm,
+    },
+  ];
+}
+
+/**
+ * Lone 'start' marker for empty sequences. Manual mode emits this when
+ * there are no user stitches yet so the editor's empty-project frame
+ * still keys off `(startStitchXMm, 0)` for jump-window math.
+ */
+export function loneStartMarker(startXMm: number, startStitchXMm: number): StartStitch {
+  return { kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: startXMm };
+}

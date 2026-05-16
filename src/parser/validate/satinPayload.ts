@@ -50,13 +50,13 @@ export function checkSatinPayload(ctx: Ctx, sub: SubChunk): void {
   // negatives encoded via signed wrap appear as ~4 billion µm).
   let bad = 0;
   for (let i = 0; i < numL; i++) {
-    if (be32(p, 4 + i * 8) >= 0x80000000) bad++;
-    if (be32(p, 4 + i * 8 + 4) >= 0x80000000) bad++;
+    if (be32(p, 4 + i * 8) < 0) bad++;
+    if (be32(p, 4 + i * 8 + 4) < 0) bad++;
   }
   const rOff = 4 + numL * 8 + 2;
   for (let i = 0; i < numR; i++) {
-    if (be32(p, rOff + i * 8) >= 0x80000000) bad++;
-    if (be32(p, rOff + i * 8 + 4) >= 0x80000000) bad++;
+    if (be32(p, rOff + i * 8) < 0) bad++;
+    if (be32(p, rOff + i * 8 + 4) < 0) bad++;
   }
   if (bad === 0)
     pass(ctx, `${where} non-negative coords`, `all ${numL + numR} BE32s have high bit clear`);
