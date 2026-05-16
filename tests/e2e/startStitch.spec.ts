@@ -314,3 +314,367 @@ test.describe('Manual Mode end-to-end create / preview / export', () => {
     expect(payloadLen).toBeGreaterThan(0);
   });
 });
+
+// =============================================================================
+// Pointer-event routing tests (Flow 4 in FLOWS.md).
+//
+// The existing tests above mutate `__sh7pad_store` directly. These tests use
+// real `page.mouse.down/move/up` plus `document.elementFromPoint` to prove
+// the renderer's z-order and interact.ts's explicit `start-stitch`-first
+// check actually route clicks the way we expect:
+//   (a) a click inside the Needle Slot routes to the Start Stitch handle
+//   (b) a click on the Foot Frame body outside the slot routes to the
+//       Carriage Start handle
+//   (c) a real carriage-body drag moves both handles together (drag-along)
+//   (d) with the carriage at +5, dragging the Start Stitch far left clamps
+//       to +1.5 — proving the slot invariant is relative to the Carriage
+//       Start, not the hoop origin
+// =============================================================================
+
+type StartState = { carriage: number; stitch: number };
+
+async function readStartState(page: Page): Promise<StartState> {
+  return page.evaluate(() => {
+    const store = (globalThis as unknown as {
+      __sh7pad_store?: { getState: () => { startXMm?: number; startStitch?: { x: number } } };
+    }).__sh7pad_store;
+    const s = store?.getState();
+    return { carriage: s?.startXMm ?? 0, stitch: s?.startStitch?.x ?? 0 };
+  });
+}
+
+/** Drag from one viewport point to another via real pointer events. */
+async function dragFromTo(page: Page, from: { x: number; y: number }, to: { x: number; y: number }): Promise<void> {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down();
+  // A couple of intermediate moves so the renderer's `pointermove`
+  // handler sees a real drag and not a jump.
+  await page.mouse.move((from.x + to.x) / 2, (from.y + to.y) / 2);
+  await page.mouse.move(to.x, to.y);
+  await page.mouse.up();
+}
+
+test.describe('Pointer-event routing splits Needle Slot from Foot Frame body', () => {
+  test('elementFromPoint inside the Needle Slot hits the Start Stitch group', async ({ page }) => {
+    await openFreshEditor(page);
+    await assertEditorMounted(page);
+
+    const slotBox = await page.locator('[data-role="start-marker"] .ed-start-slot').boundingBox();
+    expect(slotBox).not.toBeNull();
+    const slotCenter = { x: slotBox!.x + slotBox!.width / 2, y: slotBox!.y + slotBox!.height / 2 };
+    const routedRole = await page.evaluate(([x, y]) => {
+      const el = document.elementFromPoint(x as number, y as number) as Element | null;
+      const group = el?.closest('[data-role]') as Element | null;
+      return group?.getAttribute('data-role') ?? null;
+    }, [slotCenter.x, slotCenter.y]);
+    // The Start Stitch group is appended after the Start Marker group in
+    // render.ts, so its transparent `.ed-start-stitch-hit` rect wins inside
+    // the Needle Slot in DOM order.
+    expect(routedRole).toBe('start-stitch');
+  });
+
+  test('elementFromPoint on the Foot Frame body outside the slot hits the Start Marker group', async ({ page }) => {
+    await openFreshEditor(page);
+    await assertEditorMounted(page);
+
+    const bodyBox = await page.locator('[data-role="start-marker"] .ed-start-body').boundingBox();
+    const slotBox = await page.locator('[data-role="start-marker"] .ed-start-slot').boundingBox();
+    expect(bodyBox).not.toBeNull();
+    expect(slotBox).not.toBeNull();
+    // Pick a point on the Foot Frame body well to the left of the Needle Slot.
+    // Foot S body is 20 mm wide and the slot is 7 mm wide, both centred on
+    // the carriage X, so half-way between the body's left edge and the
+    // slot's left edge sits inside the body but well outside the slot.
+    const bodyLeftEdge = bodyBox!.x;
+    const slotLeftEdge = slotBox!.x;
+    const px = (bodyLeftEdge + slotLeftEdge) / 2;
+    const py = bodyBox!.y + bodyBox!.height / 2;
+    const routedRole = await page.evaluate(([x, y]) => {
+      const el = document.elementFromPoint(x as number, y as number) as Element | null;
+      const group = el?.closest('[data-role]') as Element | null;
+      return group?.getAttribute('data-role') ?? null;
+    }, [px, py]);
+    expect(routedRole).toBe('start-marker');
+  });
+
+  test('dragging the Foot Frame body moves Carriage Start and drags the Start Stitch along', async ({ page }) => {
+    await openFreshEditor(page);
+    await assertEditorMounted(page);
+
+    const before = await readStartState(page);
+    expect(before).toEqual({ carriage: 0, stitch: 0 });
+
+    // Grab a point on the Foot Frame body well outside the Needle Slot so
+    // the gesture routes to the Carriage handle (interact.ts:113 checks
+    // `start-stitch` first; this point misses the slot's hit rect).
+    const bodyBox = await page.locator('[data-role="start-marker"] .ed-start-body').boundingBox();
+    const slotBox = await page.locator('[data-role="start-marker"] .ed-start-slot').boundingBox();
+    expect(bodyBox).not.toBeNull();
+    expect(slotBox).not.toBeNull();
+    const startPx = {
+      x: (bodyBox!.x + slotBox!.x) / 2,
+      y: bodyBox!.y + bodyBox!.height / 2,
+    };
+    // Drag right by ~70 px (comfortably within Foot S reach of ±27.25 mm
+    // at default zoom). We assert positivity, not an exact mm — the
+    // viewport size and Vite dev-server zoom decide the px-to-mm ratio.
+    await dragFromTo(page, startPx, { x: startPx.x + 70, y: startPx.y });
+
+    const after = await readStartState(page);
+    expect(after.carriage).toBeGreaterThan(0);
+    expect(after.carriage).toBeLessThan(27.25);
+    // Drag-along: the Start Stitch rode with the Carriage Start by the
+    // same delta (the initial offset was 0).
+    expect(after.stitch).toBeCloseTo(after.carriage, 5);
+  });
+
+  test('with Carriage Start at +5, dragging the Start Stitch left clamps to +1.5 (slot-relative)', async ({ page }) => {
+    await openFreshEditor(page);
+    await assertEditorMounted(page);
+
+    // Stage the carriage at +5 mm via the store. The invariant drags the
+    // Start Stitch along to +5 too.
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p) => ({ ...(p as object), startXMm: 5, updatedAt: Date.now() }));
+    });
+    const staged = await readStartState(page);
+    expect(staged.carriage).toBe(5);
+    expect(staged.stitch).toBe(5);
+
+    // Drag the Start Stitch glyph far left — well past the Needle Slot's
+    // left edge in screen space. The store invariant should hard-stop at
+    // `carriage - needleSlotHalfMm = 5 - 3.5 = 1.5`.
+    const stitchBox = await page.locator('[data-role="start-stitch"] .ed-start-stitch-hit').boundingBox();
+    expect(stitchBox).not.toBeNull();
+    const fromPx = { x: stitchBox!.x + stitchBox!.width / 2, y: stitchBox!.y + stitchBox!.height / 2 };
+    const canvasBox = await page.locator('#ed-canvas').boundingBox();
+    expect(canvasBox).not.toBeNull();
+    // Aim for a point well outside the canvas's left edge so the slot
+    // edge is comfortably overshot whatever the zoom level.
+    const toPx = { x: canvasBox!.x - 200, y: fromPx.y };
+    await dragFromTo(page, fromPx, toPx);
+
+    const after = await readStartState(page);
+    expect(after.carriage).toBe(5); // Carriage Start is unmoved
+    expect(after.stitch).toBeCloseTo(1.5, 5); // hard-stopped at left slot edge
+  });
+});
+
+// =============================================================================
+// Manual Mode Start Lock affordances (Flow 5 in FLOWS.md).
+//
+// In Manual Mode, placing the first user stitch engages the Start Lock,
+// which freezes BOTH the Carriage Start and the Start Stitch. The
+// affordances flip together:
+//   • both groups: `data-locked="true"` and the `*-locked` CSS class
+//   • both <title> children contain "Locked"
+//   • a pointer drag attempt on either handle is short-circuited
+// =============================================================================
+
+test.describe('Manual Mode Start Lock freezes both handles after first user stitch', () => {
+  /** Create a fresh Manual-mode project on Foot B via the New Stitch dialog. */
+  async function createManualProject(page: Page): Promise<void> {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Got it' }).click();
+    await page.getByRole('button', { name: '+ New Stitch' }).click();
+    await expect(page.locator('.info-backdrop[data-component="new-project"]')).toBeVisible();
+    await page.locator('label[data-option="manual"]').click();
+    await page.locator('label[data-option="B"]').click();
+    await page.getByRole('button', { name: 'Create' }).click();
+    await expect(page.locator('.info-backdrop[data-component="new-project"]')).toHaveCount(0);
+  }
+
+  test('fresh manual project: both handles unlocked, tooltips say "Drag to..."', async ({ page }) => {
+    await createManualProject(page);
+    await assertEditorMounted(page);
+
+    const marker = page.locator('[data-role="start-marker"]');
+    const stitch = page.locator('[data-role="start-stitch"]');
+    await expect(marker).toHaveAttribute('data-locked', 'false');
+    await expect(stitch).toHaveAttribute('data-locked', 'false');
+    await expect(marker).not.toHaveClass(/ed-start-marker-locked/);
+    await expect(stitch).not.toHaveClass(/ed-start-stitch-locked/);
+    const markerTitle = await marker.locator('title').textContent();
+    const stitchTitle = await stitch.locator('title').textContent();
+    expect(markerTitle).toContain('Drag to');
+    expect(stitchTitle).toContain('Drag to');
+    expect(markerTitle).not.toContain('Locked');
+    expect(stitchTitle).not.toContain('Locked');
+  });
+
+  test('after first user stitch: both handles lock, classes attach, tooltips switch to "Locked"', async ({ page }) => {
+    await createManualProject(page);
+    await assertEditorMounted(page);
+
+    // Place one needle stitch via the store — the chain anchor sits at
+    // (0, 0), Carriage Start at 0, so (1, 2) is inside the Needle Slot.
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p: unknown) => {
+        const proj = p as {
+          manualStitches: Array<{ kind: 'needle'; x: number; y: number; dxRaw: number; dyRaw: number }>;
+          updatedAt: number;
+        };
+        return {
+          ...proj,
+          manualStitches: [
+            ...proj.manualStitches,
+            { kind: 'needle', x: 1, y: 2, dxRaw: 8, dyRaw: 24 },
+          ],
+          updatedAt: Date.now(),
+        };
+      });
+    });
+
+    const marker = page.locator('[data-role="start-marker"]');
+    const stitch = page.locator('[data-role="start-stitch"]');
+    await expect(marker).toHaveAttribute('data-locked', 'true');
+    await expect(stitch).toHaveAttribute('data-locked', 'true');
+    await expect(marker).toHaveClass(/ed-start-marker-locked/);
+    await expect(stitch).toHaveClass(/ed-start-stitch-locked/);
+    const markerTitle = await marker.locator('title').textContent();
+    const stitchTitle = await stitch.locator('title').textContent();
+    expect(markerTitle).toContain('Locked');
+    expect(stitchTitle).toContain('Locked');
+  });
+
+  test('locked handle ignores a pointer drag attempt', async ({ page }) => {
+    await createManualProject(page);
+    await assertEditorMounted(page);
+
+    // Engage the Start Lock by placing one user stitch.
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p: unknown) => {
+        const proj = p as {
+          manualStitches: Array<{ kind: 'needle'; x: number; y: number; dxRaw: number; dyRaw: number }>;
+          updatedAt: number;
+        };
+        return {
+          ...proj,
+          manualStitches: [{ kind: 'needle', x: 1, y: 2, dxRaw: 8, dyRaw: 24 }],
+          updatedAt: Date.now(),
+        };
+      });
+    });
+    await expect(page.locator('[data-role="start-marker"]')).toHaveAttribute('data-locked', 'true');
+    const before = await readStartState(page);
+
+    // Try to drag the Foot Frame body. interact.ts:128-134 reads
+    // `data-locked="true"` and refuses to even start the drag.
+    const bodyBox = await page.locator('[data-role="start-marker"] .ed-start-body').boundingBox();
+    const slotBox = await page.locator('[data-role="start-marker"] .ed-start-slot').boundingBox();
+    expect(bodyBox).not.toBeNull();
+    expect(slotBox).not.toBeNull();
+    const startPx = {
+      x: (bodyBox!.x + slotBox!.x) / 2,
+      y: bodyBox!.y + bodyBox!.height / 2,
+    };
+    await dragFromTo(page, startPx, { x: startPx.x + 70, y: startPx.y });
+
+    const after = await readStartState(page);
+    expect(after).toEqual(before); // both handles unchanged
+  });
+
+  test('locked state ignores a store setState attempt (lockStartXMm invariant)', async ({ page }) => {
+    await createManualProject(page);
+    await assertEditorMounted(page);
+
+    // Engage the Start Lock by placing one user stitch.
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p: unknown) => {
+        const proj = p as {
+          manualStitches: Array<{ kind: 'needle'; x: number; y: number; dxRaw: number; dyRaw: number }>;
+          updatedAt: number;
+        };
+        return {
+          ...proj,
+          manualStitches: [{ kind: 'needle', x: 1, y: 2, dxRaw: 8, dyRaw: 24 }],
+          updatedAt: Date.now(),
+        };
+      });
+    });
+    const before = await readStartState(page);
+
+    // Try to slide the Carriage Start through the store. The
+    // `lockStartXMm` invariant should silently revert it.
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p) => ({ ...(p as object), startXMm: 3, updatedAt: Date.now() }));
+    });
+    const after = await readStartState(page);
+    expect(after).toEqual(before);
+  });
+});
+
+// =============================================================================
+// Reach-edge clamp (nice-to-have — covers the per-foot Carriage Reach limit).
+//
+// Verifies `clampStartStateToEye`'s reach invariant `|carriage| ≤ reachHalf`
+// fires across both Foot S (±27.25 mm) and Foot B (±4.5 mm). The Start Stitch
+// follows the carriage all the way to the edge (drag-along preserves the
+// eye-relative offset).
+// =============================================================================
+
+test.describe('Carriage Reach edge clamps both handles', () => {
+  test('Foot S: pushing the Carriage Start to +50 mm clamps to +27.25, Start Stitch follows', async ({ page }) => {
+    await openFreshEditor(page);
+    await assertEditorMounted(page);
+
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p) => ({ ...(p as object), startXMm: 50, updatedAt: Date.now() }));
+    });
+    expect(await readStartState(page)).toEqual({ carriage: 27.25, stitch: 27.25 });
+
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p) => ({ ...(p as object), startXMm: -50, updatedAt: Date.now() }));
+    });
+    expect(await readStartState(page)).toEqual({ carriage: -27.25, stitch: -27.25 });
+  });
+
+  test('Foot B: a new Design project on Foot B clamps the Carriage Start to ±4.5 mm', async ({ page }) => {
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Got it' }).click();
+    await page.getByRole('button', { name: '+ New Stitch' }).click();
+    await expect(page.locator('.info-backdrop[data-component="new-project"]')).toBeVisible();
+    // Default mode is Design; switch the foot to B.
+    await page.locator('label[data-option="B"]').click();
+    await page.getByRole('button', { name: 'Create' }).click();
+    await expect(page.locator('.info-backdrop[data-component="new-project"]')).toHaveCount(0);
+    await assertEditorMounted(page);
+
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p) => ({ ...(p as object), startXMm: 50, updatedAt: Date.now() }));
+    });
+    expect(await readStartState(page)).toEqual({ carriage: 4.5, stitch: 4.5 });
+
+    await page.evaluate(() => {
+      const store = (globalThis as unknown as {
+        __sh7pad_store?: { setState: (u: (p: unknown) => unknown) => void };
+      }).__sh7pad_store;
+      store?.setState((p) => ({ ...(p as object), startXMm: -50, updatedAt: Date.now() }));
+    });
+    expect(await readStartState(page)).toEqual({ carriage: -4.5, stitch: -4.5 });
+  });
+});
