@@ -28,7 +28,7 @@ import { renderSegmentInspector, type InspectorCallbacks } from '../segmentInspe
 import { nextZoomView, type ZoomAction } from '../zoom/index.js';
 import { attachCanvasWiring } from './canvasWiring.js';
 import type { LongPressOps } from './longPressMenu.js';
-import { createRenderScheduler } from '../store/scheduleRender.js';
+import { attachStoresToScheduler } from '../store/scheduleRender.js';
 import type { ProjectStore } from '../../../creator/projectStore.js';
 import type { UiStore } from '../store/uiStore.js';
 
@@ -273,9 +273,7 @@ export function attachEditorPane(deps: EditorPaneDeps): EditorPaneHandle {
     renderInspector();
     renderToolbar();
   }
-  const scheduler = createRenderScheduler(renderAllPane);
-  uiStore.subscribe(() => scheduler.schedule());
-  projectStore.subscribe(() => scheduler.schedule());
+  attachStoresToScheduler(renderAllPane, [uiStore, projectStore]);
 
   // Self-bootstrap: paint the initial state at attach time. The scheduler
   // only fires on subsequent uiStore.update calls; first paint is on us.

@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createRenderScheduler } from '../../ui/creator/store/scheduleRender.js';
+import {
+  attachStoresToScheduler,
+  createRenderScheduler,
+} from '../../ui/creator/store/scheduleRender.js';
 
 describe('createRenderScheduler', () => {
   it('runs render synchronously on schedule', () => {
@@ -58,5 +61,37 @@ describe('createRenderScheduler', () => {
     expect(render).toHaveBeenCalledTimes(1);
     s.schedule();
     expect(render).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('attachStoresToScheduler', () => {
+  // Mini in-memory store that mirrors the subscribe-listener contract
+  // of UiStore / ProjectStore without dragging their full APIs in.
+  function fakeStore(): { fire(): void; subscribe(fn: () => void): void } {
+    const listeners: Array<() => void> = [];
+    return {
+      subscribe(fn): void { listeners.push(fn); },
+      fire(): void { for (const fn of listeners) fn(); },
+    };
+  }
+
+  it('subscribes the scheduler to every passed store', () => {
+    const render = vi.fn();
+    const a = fakeStore();
+    const b = fakeStore();
+    attachStoresToScheduler(render, [a, b]);
+    expect(render).toHaveBeenCalledTimes(0);
+    a.fire();
+    expect(render).toHaveBeenCalledTimes(1);
+    b.fire();
+    expect(render).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns a scheduler the caller can also drive directly', () => {
+    const render = vi.fn();
+    const a = fakeStore();
+    const scheduler = attachStoresToScheduler(render, [a]);
+    scheduler.schedule();
+    expect(render).toHaveBeenCalledTimes(1);
   });
 });

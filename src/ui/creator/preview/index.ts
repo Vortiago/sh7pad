@@ -18,7 +18,7 @@ import { attachCanvasCamera } from '../canvasCamera/index.js';
 import type { ZoomAction } from '../zoom/index.js';
 import { currentRowFromStep } from '../rowIdMapping.js';
 import { transportStateNow } from '../store/transportState.js';
-import { createRenderScheduler } from '../store/scheduleRender.js';
+import { attachStoresToScheduler } from '../store/scheduleRender.js';
 import type { ProjectStore } from '../../../creator/projectStore.js';
 import type { UiStore } from '../store/uiStore.js';
 import type { RowId } from '../stitchListPanel/panel.js';
@@ -201,9 +201,7 @@ export function attachPreviewPane(deps: PreviewPaneDeps): PreviewPaneHandle {
   // scheduler intentionally — scheduling would lose the synchronous
   // transport-mutate-only path that keeps the play/pause button DOM
   // stable across ticks.
-  const scheduler = createRenderScheduler(render);
-  uiStore.subscribe(() => scheduler.schedule());
-  projectStore.subscribe(() => scheduler.schedule());
+  attachStoresToScheduler(render, [uiStore, projectStore]);
 
   // Self-bootstrap: paint the initial state at attach time. render()
   // early-returns when uiStore.mode !== 'preview', so calling it in edit

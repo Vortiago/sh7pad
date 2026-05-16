@@ -39,7 +39,7 @@ import {
 import { buildSidebarCallbacks } from './callbacks.js';
 import { renderModeSwitch, type Mode } from '../modeSwitch/index.js';
 import { normalizeActiveStitch, normalizeTool } from '../toolbar/index.js';
-import { createRenderScheduler } from '../store/scheduleRender.js';
+import { attachStoresToScheduler } from '../store/scheduleRender.js';
 import type { ProjectStore } from '../../../creator/projectStore.js';
 import type { UiStore, UiState } from '../store/uiStore.js';
 import type { EditorPaneHandle } from '../editor/index.js';
@@ -246,14 +246,12 @@ export function attachSidebar(deps: SidebarPaneDeps): void {
   // Track mode separately so we can refresh the mode-switch widget
   // (a different DOM root) when it changes.
   let lastModeForSwitch = uiStore.getState().mode;
-  const scheduler = createRenderScheduler(() => {
+  attachStoresToScheduler(() => {
     applyDiff();
     const m = uiStore.getState().mode;
     if (m !== lastModeForSwitch) {
       lastModeForSwitch = m;
       renderModeSwitchInner();
     }
-  });
-  uiStore.subscribe(() => scheduler.schedule());
-  projectStore.subscribe(() => scheduler.schedule());
+  }, [uiStore, projectStore]);
 }
