@@ -30,7 +30,7 @@
     "axe-core": "^4.11.4",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.0",
-    "typescript": "^5.6.0",
+    "typescript": "^6.0.3",
     "vite": "^5.4.0",
     "vitest": "^2.1.0"
   }
