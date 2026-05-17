@@ -5,7 +5,7 @@
 // subscribe to project changes and re-render. Persistence happens in main.ts
 // via a subscription that calls saveProjects(localStorage, [getState()]).
 
-import { lockFirstPoint, lockProjectInvariants } from './project.js';
+import { lockProjectInvariants } from './project.js';
 import type { Project } from './types.js';
 
 export type Subscriber = (project: Project) => void;
@@ -19,7 +19,10 @@ export interface ProjectStore {
 }
 
 export function createProjectStore(initial: Project): ProjectStore {
-  let state = lockProjectInvariants(null, lockFirstPoint(initial));
+  // lockProjectInvariants composes lockFirstPoint internally as the last
+  // step (see projectInvariants.lockProjectInvariants); an outer
+  // lockFirstPoint here would just re-run the same fixed point.
+  let state = lockProjectInvariants(null, initial);
   const subscribers = new Set<Subscriber>();
 
   return {
@@ -30,7 +33,7 @@ export function createProjectStore(initial: Project): ProjectStore {
       const next = typeof updater === 'function'
         ? (updater as (prev: Project) => Project)(state)
         : updater;
-      const locked = lockProjectInvariants(state, lockFirstPoint(next));
+      const locked = lockProjectInvariants(state, next);
       // Skip notification when the updater (and the invariant locks)
       // returned the same reference — saves a full renderAll() for
       // callers that produce no-op state changes (e.g. dragging a point

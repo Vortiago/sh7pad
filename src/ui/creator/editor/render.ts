@@ -18,13 +18,13 @@
 import './render.css';
 import { svgEl } from '../../svgDom.js';
 import { foot } from '../../../creator/foot.js';
-import { chainEndPointId, isStartLocked, startStitchOf, startXMmOf } from '../../../creator/project.js';
+import { carriageStateOf, chainEndPointId, pointById } from '../../../creator/project.js';
 import { footWidthMmForFoot } from '../preview/constants.js';
 import {
   FOOT_BODY_HEIGHT_MM,
   FOOT_SLOT_HEIGHT_MM,
 } from '../preview/scene.js';
-import type { Point, Project } from '../../../creator/types.js';
+import type { Project } from '../../../creator/types.js';
 import type { StitchSequence } from '../../../creator/pipeline/stitch.js';
 import type { Selection } from '../store/uiStore.js';
 import type { View } from './view.js';
@@ -189,8 +189,7 @@ export function renderEditorScene(
   const selectedPtId = selection?.kind === 'point' ? selection.id : null;
 
   // 4. Segments.
-  const byId = new Map<string, Point>();
-  for (const p of project.points) byId.set(p.id, p);
+  const byId = pointById(project.points);
   const lastSegIdx = project.segments.length - 1;
   for (let i = 0; i < project.segments.length; i++) {
     const seg = project.segments[i]!;
@@ -230,14 +229,14 @@ export function renderEditorScene(
   // invariant (lockStartXMm) silently reverts attempted drags once the
   // start is locked.
   const chainAnchorY = project.points[0]?.y ?? 0;
-  const startLocked = isStartLocked(project);
-  const startPx = px(startXMmOf(project), chainAnchorY);
+  const carriage = carriageStateOf(project);
+  const startPx = px(carriage.carriageX, chainAnchorY);
   const slotW = f.needleSlotHalfMm * 2 * zoom;
   const slotH = FOOT_SLOT_HEIGHT_MM * zoom;
   svg.appendChild(renderStartMarker({
-    startXMm: startXMmOf(project),
+    startXMm: carriage.carriageX,
     chainAnchorY,
-    locked: startLocked,
+    locked: carriage.locked,
     bodyWidthMm: footWidthMmForFoot(project.suggestedFoot),
     bodyHeightMm: FOOT_BODY_HEIGHT_MM,
     slotHalfWMm: f.needleSlotHalfMm,
@@ -252,17 +251,16 @@ export function renderEditorScene(
   // surrounding Needle Slot rect (see startG above), which gets
   // re-tagged below to swallow slot-region clicks into the Start
   // Stitch drag.
-  const startStitch = startStitchOf(project);
-  const startStitchPx = px(startStitch.x, chainAnchorY);
+  const startStitchPx = px(carriage.startStitch.x, chainAnchorY);
   const stitchG = svgEl('g', {
     'data-role': 'start-stitch',
-    'data-locked': startLocked ? 'true' : 'false',
+    'data-locked': carriage.locked ? 'true' : 'false',
     transform: `translate(${startStitchPx.x} ${startStitchPx.y})`,
-  }, ['ed-start-stitch', ...(startLocked ? ['ed-start-stitch-locked'] : [])]);
+  }, ['ed-start-stitch', ...(carriage.locked ? ['ed-start-stitch-locked'] : [])]);
   const stitchTooltip = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-  stitchTooltip.textContent = startLocked
-    ? `Start Stitch: X = ${startStitch.x.toFixed(2)} mm. Locked — manual-mode designs freeze the Start Stitch once the first stitch is placed.`
-    : `Start Stitch: X = ${startStitch.x.toFixed(2)} mm. Drag to slide the first needle drop within the Needle Slot.`;
+  stitchTooltip.textContent = carriage.locked
+    ? `Start Stitch: X = ${carriage.startStitch.x.toFixed(2)} mm. Locked — manual-mode designs freeze the Start Stitch once the first stitch is placed.`
+    : `Start Stitch: X = ${carriage.startStitch.x.toFixed(2)} mm. Drag to slide the first needle drop within the Needle Slot.`;
   stitchG.appendChild(stitchTooltip);
   const stitchSize = Math.max(4, Math.min(8, zoom * 1.2));
   stitchG.appendChild(svgEl('polygon', {

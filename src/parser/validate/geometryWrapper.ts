@@ -215,11 +215,11 @@ export function checkGeometryWrapper(
         );
     }
 
-    // Y values are derivable; we just check they fit BE32 and are non-negative
-    // (BE32 reads unsigned anyway, so this is just a sanity check on the
-    // upper bit being zero, which means the firmware reads the same value
-    // even if the encoder accidentally treated it as signed).
-    if (x < 0x80000000 && y < 0x80000000)
+    // Y values must have the high bit clear. readBE32 returns a signed
+    // int32, so a high-bit-set byte sequence reads as a negative number.
+    // The firmware reads the field as unsigned, so a -1500 µm value (signed
+    // wrap) reads as ~4 billion µm and crashes the stitch generator.
+    if (x >= 0 && y >= 0)
       pass(ctx, `${where} pre-header trailing values fit unsigned BE32`, `(${x}, ${y})`);
     else
       fail(ctx, `${where} pre-header trailing values fit unsigned BE32`, `(${x}, ${y}) — high bit set`);

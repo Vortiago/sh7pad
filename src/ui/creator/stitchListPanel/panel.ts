@@ -13,6 +13,7 @@
 import './stitchListPanel.css';
 import type { ManualStitchInput, Point, Project, SatinSegment, Segment } from '../../../creator/types.js';
 import { safeSequenceFromProject as sequenceFromProject } from '../../../creator/pipeline/encodeDesign.js';
+import { pointById } from '../../../creator/project.js';
 import { manualRowId } from '../rowIdMapping.js';
 import { mmLabel, slot, tplFrom } from '../dom.js';
 import templateHtml from './stitchListPanel.html?raw';
@@ -91,7 +92,7 @@ export function renderStitchListPanel(
       ol.appendChild(li);
     }
   } else {
-    const byId = new Map(project.points.map((p) => [p.id, p]));
+    const byId = pointById(project.points);
     const lastIdx = project.segments.length - 1;
     // The unified carriage planner can emit a mix of needle and jump
     // records per straight segment under any foot — Foot B's narrower

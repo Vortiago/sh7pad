@@ -26,7 +26,7 @@
   "devDependencies": {
     "@lhci/cli": "^0.15.1",
     "@playwright/test": "^1.60.0",
-    "@types/node": "^22.7.0",
+    "@types/node": "^24.0.0",
     "axe-core": "^4.11.4",
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^25.0.0",

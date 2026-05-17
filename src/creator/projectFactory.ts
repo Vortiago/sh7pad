@@ -7,6 +7,7 @@
 
 import type {
   IdGenOptions,
+  Point,
   Project,
   ProjectMode,
 } from './types.js';
@@ -74,6 +75,49 @@ export function startXMmOf(project: Project): number {
 export function startStitchOf(project: Project): { x: number; y: 0 } {
   const x = project.startStitch?.x ?? project.points[0]?.x ?? 0;
   return { x, y: 0 };
+}
+
+/**
+ * The **Carriage Start** state a renderer / encoder / planner needs to
+ * read about a project: the carriage's resting X position, the **Start
+ * Stitch** position (always `y: 0`), and whether both are frozen by the
+ * Start Lock. The three values move together (drag-coupling is enforced
+ * by [[clampStartStateToEye]] / [[lockStartXMm]] on every store
+ * transition), so this is the single read seam consumers should use.
+ *
+ * Internally composes [[startXMmOf]], [[startStitchOf]], and
+ * [[isStartLocked]] — those wrappers remain for back-compat but new
+ * callers should ask for the bundled state.
+ */
+export interface CarriageStart {
+  /** **Carriage Start** X in mm (per CONTEXT.md, the carriage's resting position). */
+  carriageX: number;
+  /** **Start Stitch** position. Y is always 0. */
+  startStitch: { x: number; y: 0 };
+  /**
+   * True when the Start Lock is in effect. Imported from
+   * [[isStartLocked]] to avoid a second require of `projectInvariants`.
+   */
+  locked: boolean;
+}
+
+export function carriageStateOf(project: Project): CarriageStart {
+  return {
+    carriageX: startXMmOf(project),
+    startStitch: startStitchOf(project),
+    locked: project.mode === 'manual' && project.manualStitches.length > 0,
+  };
+}
+
+/**
+ * Build an `id → Point` lookup map from the project's points. Centralised so
+ * the encoders, the editor renderer, and the stitch-list panel all read
+ * the same map and the Map construction lives in one place.
+ */
+export function pointById(points: readonly Point[]): ReadonlyMap<string, Point> {
+  const map = new Map<string, Point>();
+  for (const p of points) map.set(p.id, p);
+  return map;
 }
 
 /**

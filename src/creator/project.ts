@@ -13,13 +13,15 @@ export {
   TENSION_MAX,
   TENSION_MIN,
   TENSION_STEP,
+  carriageStateOf,
   chainEndPointId,
   hasSatin,
   newProject,
+  pointById,
   startStitchOf,
   startXMmOf,
 } from './projectFactory.js';
-export type { NewProjectOptions } from './projectFactory.js';
+export type { CarriageStart, NewProjectOptions } from './projectFactory.js';
 
 export {
   isStartLocked,

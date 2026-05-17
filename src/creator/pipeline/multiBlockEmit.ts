@@ -25,7 +25,8 @@
 // mismatch by construction.
 
 import type { Point, Project } from '../types.js';
-import type { Stitch, StitchSequence } from './stitch.js';
+import { pointById } from '../projectFactory.js';
+import { startFrames, type Stitch, type StitchSequence } from './stitch.js';
 import {
   coneCorners,
   satinTrailerEnd,
@@ -543,20 +544,7 @@ function buildSequenceWithStartMarker(
   startStitchXMm: number,
 ): StitchSequence {
   if (flatStitches.length === 0) return [];
-  const startDxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
-  return [
-    { kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: initialCarriageXMm },
-    {
-      kind: 'needle',
-      x: startStitchXMm,
-      y: 0,
-      dxRaw: startDxRaw,
-      dyRaw: 0,
-      sourceIndex: -1,
-      carriageXMm: initialCarriageXMm,
-    },
-    ...flatStitches,
-  ];
+  return [...startFrames(initialCarriageXMm, startStitchXMm), ...flatStitches];
 }
 
 /**
@@ -631,8 +619,7 @@ export function emitDesignMultiBlock(
   initialCarriageXMm = 0,
   startStitchXMm = 0,
 ): MultiBlockEmitResult {
-  const byId = new Map<string, Point>();
-  for (const p of points) byId.set(p.id, p);
+  const byId = pointById(points);
 
   const edgesBySegId = new Map<string, ConeEdges>();
   for (const seg of segments) {

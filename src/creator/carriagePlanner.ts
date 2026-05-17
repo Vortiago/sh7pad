@@ -38,13 +38,6 @@
 // run-span check while landing the needle 6 mm right of a planted
 // carriage — outside the slot half (3 mm). The hardware's slot is
 // symmetric around the carriage; the planner test must be too.
-//
-// Foot-agnostic input. The planner reads two numeric constraints
-// (`needleSlotHalfMm`, `carriageReachHalfMm`) — exactly the two fields
-// it needs to make slot/jump decisions. Both the Foot record (foot.ts)
-// and hand-rolled `{ needleSlotHalfMm, carriageReachHalfMm }` objects
-// satisfy the input by structural typing, so tests can construct
-// synthetic constraints directly without inventing a fake Foot.
 
 import { X_UNITS_PER_MM, Y_UNITS_PER_MM } from '../parser/units.js';
 import { STITCH_DY_MAX_RAW } from './sh7Limits.js';

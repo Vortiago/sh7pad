@@ -18,7 +18,8 @@
 // are private to this module.
 
 import { foot } from './foot.js';
-import { hasSatin, startStitchOf, startXMmOf } from './project.js';
+import { carriageStateOf, hasSatin } from './project.js';
+import { pointById } from './projectFactory.js';
 import { boundsOf, xUmYumFromBbox } from './bbox.js';
 import type { ConeEdges } from '../shared/satinShape.js';
 import { coneEdgesFromManual, coneEdgesFromSegment } from './satinSources.js';
@@ -30,7 +31,7 @@ import { encodeSegments } from './pipeline/encodeSegments.js';
 import { X_UNITS_PER_MM } from '../parser/units.js';
 import type { Foot } from './foot.js';
 import type { Project } from './types.js';
-import type { Stitch, StitchSequence } from './pipeline/stitch.js';
+import { loneStartMarker, startFrames, type Stitch, type StitchSequence } from './pipeline/stitch.js';
 import type {
   DesignBlockDraft,
   StitchInput,
@@ -73,15 +74,14 @@ function isInt8(v: number): boolean {
 export function projectSequence(project: Project): StitchSequence {
   const projectFoot = foot(project.suggestedFoot);
   const planOpts = planOptsFor(project);
-  const startX = startXMmOf(project);
-  const startStitchX = startStitchOf(project).x;
+  const { carriageX, startStitch } = carriageStateOf(project);
   if (project.mode === 'manual') {
     return hasSatin(project)
-      ? emitManualMultiBlock(project, projectFoot, planOpts, startX, startStitchX).sequence
-      : manualSequence(project, startX, startStitchX);
+      ? emitManualMultiBlock(project, projectFoot, planOpts, carriageX, startStitch.x).sequence
+      : manualSequence(project, carriageX, startStitch.x);
   }
   return encodeSegments(
-    project.points, project.segments, projectFoot, planOpts, startX, startStitchX,
+    project.points, project.segments, projectFoot, planOpts, carriageX, startStitch.x,
   );
 }
 
@@ -130,14 +130,9 @@ function manualSequence(project: Project, startXMm: number, startStitchXMm: numb
     userStitches.push(stitchFromManual(m, carriage));
   }
   if (userStitches.length === 0) {
-    return [{ kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: startXMm }];
+    return [loneStartMarker(startXMm, startStitchXMm)];
   }
-  const dxRaw = Math.round(startStitchXMm * X_UNITS_PER_MM);
-  return [
-    { kind: 'start', x: startStitchXMm, y: 0, sourceIndex: -1, carriageXMm: startXMm },
-    { kind: 'needle', x: startStitchXMm, y: 0, dxRaw, dyRaw: 0, sourceIndex: -1, carriageXMm: startXMm },
-    ...userStitches,
-  ];
+  return [...startFrames(startXMm, startStitchXMm), ...userStitches];
 }
 
 /**
@@ -191,7 +186,7 @@ function sequenceToSingletonDraft(seq: StitchSequence, project: Project): Single
     tensionByte: Math.round(project.threadTension * 10),
     xUm,
     yUm,
-    xElem: xElemUmFromStart(startXMmOf(project)),
+    xElem: xElemUmFromStart(carriageStateOf(project).carriageX),
     stitches,
   };
 }
@@ -240,19 +235,20 @@ function multiBlockDraft(project: Project, source: SatinSource): MultiBlockDesig
 }
 
 function segmentSatinSource(project: Project): SatinSource {
-  const pointsById = new Map(project.points.map((p) => [p.id, p] as const));
+  const pointsById = pointById(project.points);
   const edges: ConeEdges[] = [];
   for (const seg of project.segments) {
     if (seg.type !== 'satin') continue;
     const e = coneEdgesFromSegment(seg, pointsById);
     if (e) edges.push(e);
   }
+  const { carriageX, startStitch } = carriageStateOf(project);
   return {
     coneEdges: () => edges,
     emitBlocks: (f, planOpts) =>
       emitDesignMultiBlock(
         project.points, project.segments, f, planOpts,
-        startXMmOf(project), startStitchOf(project).x,
+        carriageX, startStitch.x,
       ).blocks,
   };
 }
@@ -263,10 +259,11 @@ function manualSatinSource(project: Project): SatinSource {
     if (m.kind !== 'satin') continue;
     edges.push(coneEdgesFromManual(m));
   }
+  const { carriageX, startStitch } = carriageStateOf(project);
   return {
     coneEdges: () => edges,
     emitBlocks: (f, planOpts) =>
-      emitManualMultiBlock(project, f, planOpts, startXMmOf(project), startStitchOf(project).x).blocks,
+      emitManualMultiBlock(project, f, planOpts, carriageX, startStitch.x).blocks,
   };
 }
 
