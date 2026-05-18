@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Phone toolbar trims (Q5). Structural assertions on the source CSS:
 // at @media (max-width: 639px) the zoom group is hidden, the stats
 // .ed-right column is hidden, and the stitch-type group is hidden

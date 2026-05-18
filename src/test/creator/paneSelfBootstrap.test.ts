@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Self-bootstrap tests for the non-sidebar panes. After Round 4 each
 // pane (editor, preview, stitchListPanel) paints its initial state at
 // attach time, the same way attachSidebar already did. Previously

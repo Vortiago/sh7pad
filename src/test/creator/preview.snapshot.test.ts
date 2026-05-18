@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Phase 0 characterization: preview SVG snapshot for two fixture projects.
 //
 // Locks the rendered preview output for a Foot S project (with carriage

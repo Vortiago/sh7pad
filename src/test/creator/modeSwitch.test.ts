@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { renderModeSwitch } from '../../ui/creator/modeSwitch/index.js';
 

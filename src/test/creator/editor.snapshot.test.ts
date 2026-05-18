@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Phase 0 characterization: editor SVG snapshot for two fixture projects.
 // Same structural signature approach as preview.snapshot.test.ts.
 

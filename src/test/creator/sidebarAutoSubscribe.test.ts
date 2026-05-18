@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Sidebar auto-subscription tests. attachSidebar attaches a scheduler
 // subscription to uiStore the same way editor / preview / stitchListPanel
 // do — but rebuilds named sub-regions (projects, stitch-settings,

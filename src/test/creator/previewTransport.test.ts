@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { renderPreviewTransport, updatePreviewTransport } from '../../ui/creator/preview/transport.js';
 

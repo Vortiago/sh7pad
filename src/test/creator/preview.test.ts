@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderPreviewScene } from '../../ui/creator/preview/render.js';
 import { DEFAULT_BG_COLOR, DEFAULT_THREAD_COLOR } from '../../ui/creator/preview/constants.js';

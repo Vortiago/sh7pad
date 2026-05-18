@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Round 4 candidate #2: each non-sidebar pane subscribes to projectStore
 // directly via its scheduler, so a project mutation re-renders the pane
 // WITHOUT relying on mountCreator's projectStore-to-uiStore mirror.

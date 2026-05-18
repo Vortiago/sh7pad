@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Phase 6: New-project dialog.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';

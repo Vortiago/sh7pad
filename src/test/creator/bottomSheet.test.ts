@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // bottomSheet state machine + component contract.
 //
 // A bottom sheet has 3 states: closed / half / full. The user drags a

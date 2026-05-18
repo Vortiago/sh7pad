@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // canvasGesture recognizer — synthetic PointerEvent sequences exercise
 // the multi-touch path. Single-pointer events should NOT invoke the
 // callbacks (those go to the existing single-pointer flow).

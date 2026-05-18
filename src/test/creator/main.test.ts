@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { afterEach, describe, expect, it } from 'vitest';
 import { IDBFactory } from 'fake-indexeddb';
 import { mountCreator } from '../../ui/creator/mountCreator.js';
