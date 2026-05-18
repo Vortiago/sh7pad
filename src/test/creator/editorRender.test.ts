@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderEditorScene } from '../../ui/creator/editor/render.js';
 import { computeView } from '../../ui/creator/editor/view.js';

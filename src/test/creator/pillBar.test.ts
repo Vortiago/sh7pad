@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // pillBar — phone-only bottom toggle pair for the Projects + Stitches
 // sheets. Mirrors aria-expanded from each sheet via onStateChange,
 // flips data-active for visual styling.

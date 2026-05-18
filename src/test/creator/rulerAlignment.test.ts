@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // The X/Y rulers in the editor sit in CSS containers offset from the canvas
 // (`.ed-ruler-top` is `left: 34px`, `.ed-ruler-left` is `top: 22px`). The
 // canvas SVG fills the entire wrap, so a tick drawn at the same SVG

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { renderRulers, pickRulerStep } from '../../ui/creator/rulers/index.js';
 import type { View } from '../../ui/creator/editor/view.js';

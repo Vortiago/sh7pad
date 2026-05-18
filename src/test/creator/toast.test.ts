@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { showToast, removeToast } from '../../ui/creator/toast/index.js';
 

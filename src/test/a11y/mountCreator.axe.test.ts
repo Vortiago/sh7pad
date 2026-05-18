@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // axe-core gate: mounts the full creator UI in jsdom and runs axe.run().
 // Fails the build on any violation. This drives the WCAG 2.1 AA work in
 // commit 1 (focus styles, label/input pairing, modal focus traps, skip link)

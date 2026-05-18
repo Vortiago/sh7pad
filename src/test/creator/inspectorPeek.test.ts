@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // inspectorPeek — phone inspector adapter. Owns its own render host
 // (a fresh .ed-inspector inside .ip-body) and re-renders via
 // renderSegmentInspector on every uiStore / projectStore change. Auto-

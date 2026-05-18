@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Canvas keyboard navigation — synthetic keydown events on the SVG
 // drive nudges, point cycling, append, and deselect. The live-region
 // element is populated debounced for nudges, immediate for selection.

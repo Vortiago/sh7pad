@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest';
 import { renderSidebar } from '../../ui/creator/sidebar/sidebar.js';
 import { newProject } from '../../creator/project.js';

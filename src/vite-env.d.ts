@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 // Type declarations for Vite's static-asset imports used in this project.
 //
 // `?raw` returns the file contents as a string at build time (no runtime

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // attachLayoutAttrs — pane visibility derivation.
 //
 // Pins the contract: #pane-edit.hidden and #pane-preview.hidden are

@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // appBar — phone-only top bar exposing mode toggle + overflow menu.
 // Tests verify mode segmented control mirrors uiStore.mode and that
 // the overflow menu surfaces the rulers toggle.

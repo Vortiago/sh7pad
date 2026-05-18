@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // responsive controller — mounts/unmounts phone-only chrome based on
 // matchMedia('(max-width: 639px)'). The mount path re-parents the
 // existing sidebar and stitch-list panels into bottom sheets and adds

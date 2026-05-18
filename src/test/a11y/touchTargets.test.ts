@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // Touch-target sizing: structural test on shared/touch.css. We verify
 // the file contains the @media (pointer: coarse) block with the 44px
 // minimum on interactive elements.

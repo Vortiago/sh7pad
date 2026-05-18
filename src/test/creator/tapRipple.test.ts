@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 // tapRipple — spawns a transient ripple span on the canvas wrap so
 // touch taps get visual confirmation. Pure DOM, no store mediation.
 
